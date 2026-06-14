@@ -32,19 +32,33 @@ export const libraryItems: LibraryItem[] = [
     title: "The Glass Partition",
     description: "A study of invisible barriers in modern institutions.",
     href: "/library/the-glass-partition",
+    image: "/images/glass-partition.png",
+    category: "Novel",
   },
   {
     id: "employability-fracture",
     title: "Employability Fracture Report",
     description: "Research on the widening gap between education and capability.",
     href: "/library/employability-fracture-report",
+    image: "/images/employability-fracture.png",
+    category: "Research Report",
   },
   {
     id: "intelligence-journal",
     title: "Aristolegion Intelligence Journal",
     description: "Periodic dispatches on judgment, authority, and human excellence.",
     href: "/library/intelligence-journal",
+    image: "/images/intelligence-journal.png",
+    category: "Executive Journal",
   },
+  {
+    id: "capability-dividend",
+    title: "Capability Dividend™",
+    description: "Why capability has become the last remaining competitive advantage.",
+    href: "/library/capability-dividend",
+    image: "/images/intelligence-journal.png",
+    category: "Research Framework",
+  }
 ];
 
 export const inProgressItems: InProgressItem[] = [

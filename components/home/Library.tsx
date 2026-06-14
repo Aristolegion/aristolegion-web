@@ -1,3 +1,5 @@
+import Link from "next/link";
+import Image from "next/image";
 import { Container } from "@/components/layout/Container";
 import { Section } from "@/components/layout/Section";
 import { Eyebrow } from "@/components/ui/Eyebrow";
@@ -12,24 +14,44 @@ export function Library() {
           Library
         </h2>
         <p className="mt-6 max-w-2xl font-body text-base text-ivory-muted">
-          Section scaffold — publication cards in Phase 2.
-        </p>
+  A curated collection of research publications, executive journals,
+  essays, and intellectual works exploring capability, judgment,
+  authority, resilience, and human excellence.
+</p>
 
-        <ul className="mt-12 grid gap-6 md:grid-cols-3">
-          {libraryItems.map((item) => (
-            <li
-              key={item.id}
-              className="border border-gold-muted bg-navy-elevated p-6"
-            >
-              <h3 className="font-display text-xl font-medium text-ivory">
-                {item.title}
-              </h3>
-              <p className="mt-3 font-body text-sm leading-relaxed text-ivory-muted">
-                {item.description}
-              </p>
-            </li>
-          ))}
-        </ul>
+        <ul className="mt-12 grid gap-8 md:grid-cols-2 xl:grid-cols-3">
+  {libraryItems.map((item) => (
+ <li
+ key={item.id}
+ className="group overflow-hidden border border-gold-muted bg-navy-elevated transition-all duration-300 hover:-translate-y-1 hover:border-gold"
+>
+ <Link href={item.href}>
+
+   <div className="relative aspect-[3/4] overflow-hidden">
+     <Image
+       src={item.image}
+       alt={item.title}
+       fill
+       className="object-cover transition-transform duration-500 group-hover:scale-105"
+     />
+   </div>
+
+   <div className="p-6">
+     <span>{item.category}</span>
+
+     <h3>{item.title}</h3>
+
+     <p>{item.description}</p>
+
+     <div>
+       Explore →
+     </div>
+   </div>
+
+ </Link>
+</li>
+  ))}
+</ul>
       </Container>
     </Section>
   );

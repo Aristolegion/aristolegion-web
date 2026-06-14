@@ -10,6 +10,8 @@ export interface LibraryItem {
   title: string;
   description: string;
   href: string;
+  image: string;
+  category: string;
 }
 
 export interface InProgressItem {
