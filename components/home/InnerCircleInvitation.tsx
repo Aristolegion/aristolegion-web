@@ -1,6 +1,7 @@
 import { Container } from "@/components/layout/Container";
 import { Section } from "@/components/layout/Section";
 import { Card } from "@/components/ui/Card";
+import { Button } from "@/components/ui/Button";
 import { SectionHeading } from "@/components/ui/SectionHeading";
 
 export function InnerCircleInvitation() {
@@ -14,6 +15,11 @@ export function InnerCircleInvitation() {
             description="Membership is by application, not subscription. The Inner Circle follows a deliberate path — application, selection, cohort, learning experience, and community — for individuals ready to deepen their judgment and capability alongside serious peers."
             tone="navy"
           />
+          <div className="mt-8">
+            <Button href="/inner-circle" variant="primary">
+              Explore the Inner Circle
+            </Button>
+          </div>
         </Card>
       </Container>
     </Section>
