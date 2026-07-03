@@ -5,6 +5,7 @@ import { EssayHero } from "@/components/essay/EssayHero";
 import { ReadingSection } from "@/components/publication/ReadingSection";
 import { Card } from "@/components/ui/Card";
 import { Eyebrow } from "@/components/ui/Eyebrow";
+import { ExternalLinkButton } from "@/components/ui/ExternalLinkButton";
 import { NewsletterSignup } from "@/components/ui/NewsletterSignup";
 import { getRelatedEssays } from "@/lib/content/essays";
 import type { Essay } from "@/lib/content/types";
@@ -27,6 +28,28 @@ export function EssayLayout({ essay }: EssayLayoutProps) {
               <ReadingSection key={index} {...section} dropCap={index === 0} />
             ))}
           </article>
+
+          {essay.externalLinks?.primary && (
+            <div className="mx-auto mt-16 max-w-[68ch] border-t border-charcoal/15 pt-12 text-center">
+              <Eyebrow className="mb-4">Also Available</Eyebrow>
+              <ExternalLinkButton
+                href={essay.externalLinks.primary.url}
+                label={essay.externalLinks.primary.label}
+              />
+            </div>
+          )}
+        </Container>
+      </Section>
+
+      <Section background="ivory">
+        <Container>
+          <div className="mx-auto max-w-xl text-center">
+            <Eyebrow className="mb-4">Continue the Conversation</Eyebrow>
+            <ExternalLinkButton
+              href="https://www.linkedin.com/in/aristolegion/"
+              label="Follow Aristolegion on LinkedIn"
+            />
+          </div>
         </Container>
       </Section>
 

@@ -53,6 +53,15 @@ export interface PublicationSection {
   quote?: string;
 }
 
+export interface ExternalLink {
+  label: string;
+  url: string;
+}
+
+export interface ExternalLinks {
+  primary?: ExternalLink;
+}
+
 export interface Publication {
   slug: string;
   title: string;
@@ -64,6 +73,7 @@ export interface Publication {
   coverImage: string;
   excerpt: string;
   sections: PublicationSection[];
+  externalLinks?: ExternalLinks;
 }
 
 export type EssayCategory = "Judgment" | "Capability" | "Future of Work";
@@ -78,4 +88,5 @@ export interface Essay {
   readingTime: string;
   excerpt: string;
   sections: PublicationSection[];
+  externalLinks?: ExternalLinks;
 }
