@@ -19,6 +19,7 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL("https://aristolegion.com"),
   title: siteMeta.title,
   description: siteMeta.description,
 };
