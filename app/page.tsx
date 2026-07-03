@@ -7,6 +7,7 @@ import { Hero } from "@/components/home/Hero";
 import { InnerCircleInvitation } from "@/components/home/InnerCircleInvitation";
 import { Library } from "@/components/home/Library";
 import { ManifestoPreview } from "@/components/home/ManifestoPreview";
+import { Newsletter } from "@/components/home/Newsletter";
 
 export default function Home() {
   return (
@@ -23,6 +24,7 @@ export default function Home() {
         <FeaturedEssays />
         <FounderPreview />
         <InnerCircleInvitation />
+        <Newsletter />
       </main>
       <SiteFooter />
     </>

@@ -66,3 +66,17 @@ export interface Publication {
   excerpt: string;
   sections: PublicationSection[];
 }
+
+export type EssayCategory = "Judgment" | "Capability" | "Future of Work";
+
+export interface Essay {
+  slug: string;
+  title: string;
+  subtitle: string;
+  category: EssayCategory;
+  author: string;
+  publishDate: string;
+  readingTime: string;
+  excerpt: string;
+  sections: PublicationSection[];
+}
