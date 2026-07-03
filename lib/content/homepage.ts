@@ -24,7 +24,7 @@ export const navLinks: NavLink[] = [
   { label: "In Progress", href: "#in-progress" },
   { label: "Essays", href: "/essays" },
   { label: "Founder", href: "#founder" },
-  { label: "Inner Circle", href: "#inner-circle" },
+  { label: "Inner Circle", href: "/inner-circle" },
   { label: "Newsletter", href: "#newsletter" },
 ];
 
@@ -84,7 +84,7 @@ export const footerColumns: FooterColumn[] = [
     links: [
       { label: "About", href: "/about" },
       { label: "Founder", href: "#founder" },
-      { label: "Inner Circle", href: "#inner-circle" },
+      { label: "Inner Circle", href: "/inner-circle" },
       { label: "Constitution", href: "/constitution" },
     ],
   },
