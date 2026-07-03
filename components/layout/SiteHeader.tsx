@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { useState } from "react";
 import { Container } from "@/components/layout/Container";
@@ -14,9 +15,19 @@ export function SiteHeader() {
         <div className="flex h-16 items-center justify-between md:h-20">
           <Link
             href="/"
-            className="font-display text-lg font-semibold uppercase tracking-[0.2em] text-ivory transition-colors duration-200 hover:text-gold md:text-xl"
+            className="flex items-center gap-3 text-ivory transition-colors duration-200 hover:text-gold"
           >
-            {siteMeta.name}
+            <Image
+              src="/images/crest.svg"
+              alt=""
+              width={36}
+              height={36}
+              priority
+              className="h-8 w-8 md:h-9 md:w-9"
+            />
+            <span className="font-display text-lg font-semibold uppercase tracking-[0.2em] md:text-xl">
+              {siteMeta.name}
+            </span>
           </Link>
 
           <nav
@@ -64,29 +75,33 @@ export function SiteHeader() {
         </div>
       </Container>
 
-      {menuOpen && (
-        <nav
-          id="mobile-menu"
-          className="border-t border-gold-muted bg-navy md:hidden"
-          aria-label="Mobile navigation"
-        >
-          <Container>
-            <ul className="flex flex-col gap-1 py-4">
-              {navLinks.map((link) => (
-                <li key={link.href}>
-                  <Link
-                    href={link.href}
-                    className="block py-3 font-body text-base font-medium text-ivory-muted transition-colors duration-200 hover:text-gold"
-                    onClick={() => setMenuOpen(false)}
-                  >
-                    {link.label}
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          </Container>
-        </nav>
-      )}
+      <nav
+        id="mobile-menu"
+        aria-label="Mobile navigation"
+        aria-hidden={!menuOpen}
+        inert={!menuOpen}
+        className={`overflow-hidden bg-navy transition-[max-height,opacity,border-color] duration-300 ease-out md:hidden ${
+          menuOpen
+            ? "max-h-96 border-t border-gold-muted opacity-100"
+            : "max-h-0 border-t border-transparent opacity-0"
+        }`}
+      >
+        <Container>
+          <ul className="flex flex-col gap-1 py-4">
+            {navLinks.map((link) => (
+              <li key={link.href}>
+                <Link
+                  href={link.href}
+                  className="block py-3 font-body text-base font-medium text-ivory-muted transition-colors duration-200 hover:text-gold"
+                  onClick={() => setMenuOpen(false)}
+                >
+                  {link.label}
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </Container>
+      </nav>
     </header>
   );
 }

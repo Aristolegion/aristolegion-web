@@ -8,9 +8,10 @@ interface ContainerProps {
   className?: string;
 }
 
+// PRD-locked layout grid: 1280px content width, 1440px page max width.
 const sizeClasses: Record<ContainerSize, string> = {
-  default: "max-w-6xl",
-  wide: "max-w-7xl",
+  default: "max-w-7xl",
+  wide: "max-w-[1440px]",
 };
 
 export function Container({
