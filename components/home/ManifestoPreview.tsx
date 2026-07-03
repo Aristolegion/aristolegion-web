@@ -1,18 +1,36 @@
 import { Container } from "@/components/layout/Container";
 import { Section } from "@/components/layout/Section";
-import { Eyebrow } from "@/components/ui/Eyebrow";
+import { SectionHeading } from "@/components/ui/SectionHeading";
+
+const corePrinciples = [
+  "Capability",
+  "Judgment",
+  "Character",
+  "Learning",
+  "Wisdom",
+  "Human Excellence",
+];
 
 export function ManifestoPreview() {
   return (
     <Section id="manifesto" background="ivory">
       <Container>
-        <Eyebrow className="mb-4">The Manifesto</Eyebrow>
-        <h2 className="font-display text-balance text-3xl font-semibold text-charcoal md:text-5xl">
-          Manifesto Preview
-        </h2>
-        <p className="mt-6 max-w-2xl font-body text-base text-charcoal/70">
-          Section scaffold — manifesto excerpt and pull quote in Phase 2.
-        </p>
+        <SectionHeading
+          eyebrow="The Manifesto"
+          title="A Philosophy of Judgment and Capability"
+          description="Aristolegion exists to help ambitious individuals develop judgment, capability, and character in an age of accelerating change — through research, publications, essays, frameworks, and carefully designed communities."
+          tone="ivory"
+        />
+        <ul className="mt-10 flex flex-wrap gap-x-8 gap-y-3">
+          {corePrinciples.map((principle) => (
+            <li
+              key={principle}
+              className="font-body text-xs font-medium uppercase tracking-[0.15em] text-charcoal/60"
+            >
+              {principle}
+            </li>
+          ))}
+        </ul>
       </Container>
     </Section>
   );

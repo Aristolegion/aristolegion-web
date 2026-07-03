@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 import { Container } from "@/components/layout/Container";
 import { Divider } from "@/components/ui/Divider";
@@ -12,11 +13,17 @@ export function SiteFooter() {
       <Container className="py-16 md:py-20">
         <div className="grid gap-12 md:grid-cols-2 lg:grid-cols-4">
           <div className="lg:col-span-1">
-            <Link
-              href="/"
-              className="font-display text-xl font-semibold uppercase tracking-[0.2em] text-ivory"
-            >
-              {siteMeta.name}
+            <Link href="/" className="flex items-center gap-3 text-ivory">
+              <Image
+                src="/images/crest.svg"
+                alt=""
+                width={32}
+                height={32}
+                className="h-7 w-7"
+              />
+              <span className="font-display text-xl font-semibold uppercase tracking-[0.2em]">
+                {siteMeta.name}
+              </span>
             </Link>
             <p className="mt-4 max-w-xs font-body text-sm leading-relaxed text-ivory-muted">
               {siteMeta.positioning}
