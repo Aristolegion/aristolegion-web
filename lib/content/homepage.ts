@@ -22,9 +22,10 @@ export const navLinks: NavLink[] = [
   { label: "Manifesto", href: "#manifesto" },
   { label: "Library", href: "#library" },
   { label: "In Progress", href: "#in-progress" },
-  { label: "Essays", href: "#essays" },
+  { label: "Essays", href: "/essays" },
   { label: "Founder", href: "#founder" },
   { label: "Inner Circle", href: "#inner-circle" },
+  { label: "Newsletter", href: "#newsletter" },
 ];
 
 export const libraryItems: LibraryItem[] = publications.map((publication) => ({
@@ -73,8 +74,9 @@ export const footerColumns: FooterColumn[] = [
     links: [
       { label: "Manifesto", href: "/manifesto" },
       { label: "Library", href: "#library" },
-      { label: "Essays", href: "#essays" },
+      { label: "Essays", href: "/essays" },
       { label: "In Progress", href: "#in-progress" },
+      { label: "Newsletter", href: "#newsletter" },
     ],
   },
   {

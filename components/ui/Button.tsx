@@ -1,14 +1,16 @@
 import Link from "next/link";
-import type { ReactNode } from "react";
+import type { ButtonHTMLAttributes, ReactNode } from "react";
 
 type ButtonVariant = "primary" | "secondary" | "ghost";
 
 interface ButtonProps {
   children: ReactNode;
-  href: string;
+  href?: string;
+  type?: ButtonHTMLAttributes<HTMLButtonElement>["type"];
   variant?: ButtonVariant;
   className?: string;
   external?: boolean;
+  disabled?: boolean;
 }
 
 const variantClasses: Record<ButtonVariant, string> = {
@@ -23,28 +25,40 @@ const variantClasses: Record<ButtonVariant, string> = {
 export function Button({
   children,
   href,
+  type = "button",
   variant = "primary",
   className = "",
   external = false,
+  disabled = false,
 }: ButtonProps) {
-  const classes = `${variantClasses[variant]} ${className}`;
+  const classes = `${variantClasses[variant]} ${
+    disabled ? "cursor-not-allowed opacity-50" : ""
+  } ${className}`;
 
-  if (external) {
+  if (href) {
+    if (external) {
+      return (
+        <a
+          href={href}
+          className={classes}
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          {children}
+        </a>
+      );
+    }
+
     return (
-      <a
-        href={href}
-        className={classes}
-        target="_blank"
-        rel="noopener noreferrer"
-      >
+      <Link href={href} className={classes}>
         {children}
-      </a>
+      </Link>
     );
   }
 
   return (
-    <Link href={href} className={classes}>
+    <button type={type} disabled={disabled} className={classes}>
       {children}
-    </Link>
+    </button>
   );
 }
