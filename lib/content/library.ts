@@ -36,6 +36,12 @@ export const publications: Publication[] = [
         ],
       },
     ],
+    externalLinks: {
+      primary: {
+        label: "Read on Amazon Kindle",
+        url: "https://www.amazon.in/dp/B0GSSMVXPX",
+      },
+    },
   },
   {
     slug: "employability-fracture-report",
@@ -112,6 +118,12 @@ export const publications: Publication[] = [
         ],
       },
     ],
+    externalLinks: {
+      primary: {
+        label: "Read the Newsletter on LinkedIn",
+        url: "https://www.linkedin.com/newsletters/aristolegion-7431645810452484097/",
+      },
+    },
   },
   {
     slug: "capability-dividend",

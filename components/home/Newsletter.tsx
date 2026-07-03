@@ -1,5 +1,6 @@
 import { Container } from "@/components/layout/Container";
 import { Section } from "@/components/layout/Section";
+import { ExternalLinkButton } from "@/components/ui/ExternalLinkButton";
 import { NewsletterSignup } from "@/components/ui/NewsletterSignup";
 import { SectionHeading } from "@/components/ui/SectionHeading";
 
@@ -16,6 +17,13 @@ export function Newsletter() {
           />
           <div className="mt-8">
             <NewsletterSignup tone="navy" />
+          </div>
+          <div className="mt-6">
+            <ExternalLinkButton
+              href="https://www.linkedin.com/newsletters/aristolegion-7431645810452484097/"
+              label="View Newsletter Archive on LinkedIn"
+              variant="ghost"
+            />
           </div>
         </div>
       </Container>

@@ -4,6 +4,7 @@ import { PageShell } from "@/components/layout/PageShell";
 import { Section } from "@/components/layout/Section";
 import { Card } from "@/components/ui/Card";
 import { Eyebrow } from "@/components/ui/Eyebrow";
+import { ExternalLinkButton } from "@/components/ui/ExternalLinkButton";
 import { PublicationHero } from "@/components/publication/PublicationHero";
 import { ReadingSection } from "@/components/publication/ReadingSection";
 import { getRelatedPublications } from "@/lib/content/library";
@@ -27,6 +28,16 @@ export function PublicationLayout({ publication }: PublicationLayoutProps) {
               <ReadingSection key={index} {...section} dropCap={index === 0} />
             ))}
           </article>
+
+          {publication.externalLinks?.primary && (
+            <div className="mx-auto mt-16 max-w-[68ch] border-t border-charcoal/15 pt-12 text-center">
+              <Eyebrow className="mb-4">Also Available</Eyebrow>
+              <ExternalLinkButton
+                href={publication.externalLinks.primary.url}
+                label={publication.externalLinks.primary.label}
+              />
+            </div>
+          )}
         </Container>
       </Section>
 
