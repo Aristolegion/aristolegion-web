@@ -40,3 +40,29 @@ export interface FooterColumn {
   title: string;
   links: NavLink[];
 }
+
+export type PublicationCategory =
+  | "Novel"
+  | "Research Report"
+  | "Executive Journal"
+  | "Research Framework";
+
+export interface PublicationSection {
+  heading?: string;
+  paragraphs?: string[];
+  list?: string[];
+  quote?: string;
+}
+
+export interface Publication {
+  slug: string;
+  title: string;
+  subtitle: string;
+  category: PublicationCategory;
+  author: string;
+  publishDate: string;
+  readingTime: string;
+  coverImage: string;
+  excerpt: string;
+  sections: PublicationSection[];
+}
