@@ -19,11 +19,11 @@ export const siteMeta: SiteMeta = {
 };
 
 export const navLinks: NavLink[] = [
-  { label: "Manifesto", href: "#manifesto" },
+  { label: "Manifesto", href: "/manifesto" },
   { label: "Library", href: "#library" },
   { label: "In Progress", href: "#in-progress" },
   { label: "Essays", href: "/essays" },
-  { label: "Founder", href: "#founder" },
+  { label: "Founder", href: "/founder" },
   { label: "Inner Circle", href: "/inner-circle" },
   { label: "Newsletter", href: "#newsletter" },
 ];
@@ -43,21 +43,18 @@ export const inProgressItems: InProgressItem[] = [
     title: "Capability Dividend™",
     description:
       "A framework for measuring and compounding human capability over time.",
-    href: "/in-progress/capability-dividend",
   },
   {
     id: "inner-circle-founding",
     title: "Inner Circle Founding Cohort",
     description:
       "The inaugural application-based cohort cultivating judgment and excellence.",
-    href: "/in-progress/inner-circle-founding-cohort",
   },
   {
     id: "future-research",
     title: "Future Research Publications",
     description:
       "Forthcoming studies on authority, resilience, and institutional judgment.",
-    href: "/in-progress/future-research",
   },
 ];
 
@@ -82,14 +79,8 @@ export const footerColumns: FooterColumn[] = [
   {
     title: "The Institution",
     links: [
-      { label: "About", href: "/about" },
-      { label: "Founder", href: "#founder" },
+      { label: "Founder", href: "/founder" },
       { label: "Inner Circle", href: "/inner-circle" },
-      { label: "Constitution", href: "/constitution" },
     ],
-  },
-  {
-    title: "Connect",
-    links: [{ label: "Contact", href: "/contact" }],
   },
 ];

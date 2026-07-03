@@ -11,7 +11,7 @@ export function SiteFooter() {
     <footer className="bg-navy text-ivory">
       <Divider />
       <Container className="py-16 md:py-20">
-        <div className="grid gap-12 md:grid-cols-2 lg:grid-cols-4">
+        <div className="grid gap-12 md:grid-cols-2 lg:grid-cols-3">
           <div className="lg:col-span-1">
             <Link href="/" className="flex items-center gap-3 text-ivory">
               <Image

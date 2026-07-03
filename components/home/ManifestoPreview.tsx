@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { Container } from "@/components/layout/Container";
 import { Section } from "@/components/layout/Section";
 import { SectionHeading } from "@/components/ui/SectionHeading";
@@ -31,6 +32,14 @@ export function ManifestoPreview() {
             </li>
           ))}
         </ul>
+        <div className="mt-10">
+          <Link
+            href="/manifesto"
+            className="font-body text-sm font-medium text-gold transition-colors duration-200 hover:text-navy"
+          >
+            Read the Manifesto →
+          </Link>
+        </div>
       </Container>
     </Section>
   );

@@ -1,5 +1,4 @@
-import { SiteFooter } from "@/components/layout/SiteFooter";
-import { SiteHeader } from "@/components/layout/SiteHeader";
+import { PageShell } from "@/components/layout/PageShell";
 import { InProgress } from "@/components/home/InProgress";
 import { FeaturedEssays } from "@/components/home/FeaturedEssays";
 import { FounderPreview } from "@/components/home/FounderPreview";
@@ -11,22 +10,15 @@ import { Newsletter } from "@/components/home/Newsletter";
 
 export default function Home() {
   return (
-    <>
-      <a href="#main-content" className="skip-link">
-        Skip to main content
-      </a>
-      <SiteHeader />
-      <main id="main-content" className="flex-1">
-        <Hero />
-        <ManifestoPreview />
-        <Library />
-        <InProgress />
-        <FeaturedEssays />
-        <FounderPreview />
-        <InnerCircleInvitation />
-        <Newsletter />
-      </main>
-      <SiteFooter />
-    </>
+    <PageShell>
+      <Hero />
+      <ManifestoPreview />
+      <Library />
+      <InProgress />
+      <FeaturedEssays />
+      <FounderPreview />
+      <InnerCircleInvitation />
+      <Newsletter />
+    </PageShell>
   );
 }

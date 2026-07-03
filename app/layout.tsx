@@ -22,6 +22,12 @@ export const metadata: Metadata = {
   metadataBase: new URL("https://aristolegion.com"),
   title: siteMeta.title,
   description: siteMeta.description,
+  openGraph: {
+    title: siteMeta.title,
+    description: siteMeta.description,
+    type: "website",
+    images: ["/images/crest.png"],
+  },
 };
 
 export default function RootLayout({

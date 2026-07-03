@@ -1,4 +1,5 @@
 import Image from "next/image";
+import Link from "next/link";
 import { Container } from "@/components/layout/Container";
 import { Section } from "@/components/layout/Section";
 import { SectionHeading } from "@/components/ui/SectionHeading";
@@ -26,6 +27,14 @@ export function FounderPreview() {
             <p className="mt-6 max-w-xl font-body text-base leading-relaxed text-charcoal/70">
               {founder.bio}
             </p>
+            <div className="mt-6">
+              <Link
+                href={founder.href}
+                className="font-body text-sm font-medium text-gold transition-colors duration-200 hover:text-navy"
+              >
+                Read the Founder&apos;s Story →
+              </Link>
+            </div>
           </div>
         </div>
       </Container>

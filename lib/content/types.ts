@@ -18,7 +18,6 @@ export interface InProgressItem {
   id: string;
   title: string;
   description: string;
-  href: string;
 }
 
 export interface SiteMeta {
