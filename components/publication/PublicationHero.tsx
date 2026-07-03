@@ -22,7 +22,7 @@ export function PublicationHero({ publication }: PublicationHeroProps) {
     <Section background="navy">
       <Container>
         <Link
-          href="/#library"
+          href="/library"
           className="font-body text-sm font-medium text-ivory-muted transition-colors duration-200 hover:text-gold"
         >
           ← Back to the Library

@@ -27,6 +27,9 @@ export async function generateMetadata({
     title: `${publication.title} — Aristolegion Library`,
     description: publication.excerpt,
     authors: [{ name: publication.author }],
+    alternates: {
+      canonical: `https://aristolegion.com/library/${publication.slug}`,
+    },
     openGraph: {
       title: publication.title,
       description: publication.excerpt,

@@ -9,6 +9,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
     { url: BASE_URL, changeFrequency: "monthly", priority: 1 },
     { url: `${BASE_URL}/manifesto`, changeFrequency: "yearly", priority: 0.7 },
     { url: `${BASE_URL}/founder`, changeFrequency: "monthly", priority: 0.7 },
+    { url: `${BASE_URL}/library`, changeFrequency: "weekly", priority: 0.8 },
     { url: `${BASE_URL}/essays`, changeFrequency: "weekly", priority: 0.8 },
     {
       url: `${BASE_URL}/inner-circle`,

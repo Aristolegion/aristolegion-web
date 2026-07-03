@@ -12,6 +12,9 @@ export const metadata: Metadata = {
   title: "Inner Circle — Aristolegion",
   description:
     "The Aristolegion Inner Circle is an application-based cohort for individuals developing judgment, capability, and leadership. Membership is by application, not subscription.",
+  alternates: {
+    canonical: "https://aristolegion.com/inner-circle",
+  },
   openGraph: {
     title: "The Aristolegion Inner Circle",
     description:

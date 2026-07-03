@@ -27,6 +27,9 @@ export async function generateMetadata({
     title: `${essay.title} — Aristolegion Essays`,
     description: essay.excerpt,
     authors: [{ name: essay.author }],
+    alternates: {
+      canonical: `https://aristolegion.com/essays/${essay.slug}`,
+    },
     openGraph: {
       title: essay.title,
       description: essay.excerpt,

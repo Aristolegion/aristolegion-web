@@ -11,6 +11,9 @@ export const metadata: Metadata = {
   title: "Essays — Aristolegion",
   description:
     "Ongoing essays developing Aristolegion's intellectual voice — on judgment, capability, leadership, and the future of work.",
+  alternates: {
+    canonical: "https://aristolegion.com/essays",
+  },
   openGraph: {
     title: "Essays — Aristolegion",
     description:

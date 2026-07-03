@@ -9,6 +9,9 @@ export const metadata: Metadata = {
   title: "Apply to the Inner Circle — Aristolegion",
   description:
     "Begin your application to the Aristolegion Inner Circle, an application-based cohort for judgment, capability, and leadership.",
+  alternates: {
+    canonical: "https://aristolegion.com/inner-circle/apply",
+  },
   openGraph: {
     title: "Apply to the Inner Circle — Aristolegion",
     description:

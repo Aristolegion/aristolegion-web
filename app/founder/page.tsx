@@ -16,6 +16,9 @@ export const metadata: Metadata = {
   description:
     "Uday Anshuman, Founder of Aristolegion — founder story, leadership philosophy, and institutional commitment.",
   authors: [{ name: "Uday Anshuman" }],
+  alternates: {
+    canonical: "https://aristolegion.com/founder",
+  },
   openGraph: {
     title: "Uday Anshuman — Founder, Aristolegion",
     description: founder.bio,
@@ -120,7 +123,7 @@ export default function FounderPage() {
               publication, cohort, or news cycle.
             </p>
             <div className="mt-10">
-              <Button href="/#library" variant="primary">
+              <Button href="/library" variant="primary">
                 Explore the Library
               </Button>
             </div>

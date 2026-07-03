@@ -13,14 +13,14 @@ export const siteMeta: SiteMeta = {
   motto: "Where Elegance Meets Strength. Brilliance Meets Fortitude.",
   positioning:
     "An independent intellectual institution dedicated to cultivating judgment, capability, leadership, resilience, and human excellence through research, publications, essays, frameworks, and communities.",
-  title: "Aristolegion — Where Elegance Meets Strength",
+  title: "Aristolegion® | Leadership Intelligence & Human Capability Research",
   description:
-    "An independent intellectual institution dedicated to research, publications, frameworks, and communities that cultivate judgment, capability, and human excellence.",
+    "Aristolegion is an intellectual house founded by Uday Anshuman exploring leadership, judgement, capability, strategy and human potential.",
 };
 
 export const navLinks: NavLink[] = [
   { label: "Manifesto", href: "/manifesto" },
-  { label: "Library", href: "/#library" },
+  { label: "Library", href: "/library" },
   { label: "In Progress", href: "/#in-progress" },
   { label: "Essays", href: "/essays" },
   { label: "Founder", href: "/founder" },
@@ -70,7 +70,7 @@ export const footerColumns: FooterColumn[] = [
     title: "Explore",
     links: [
       { label: "Manifesto", href: "/manifesto" },
-      { label: "Library", href: "/#library" },
+      { label: "Library", href: "/library" },
       { label: "Essays", href: "/essays" },
       { label: "In Progress", href: "/#in-progress" },
       { label: "Newsletter", href: "/#newsletter" },

@@ -12,6 +12,9 @@ export const metadata: Metadata = {
   title: "Manifesto — Aristolegion",
   description:
     "The philosophy, principles, and purpose behind Aristolegion — an independent intellectual institution dedicated to judgment, capability, and human excellence.",
+  alternates: {
+    canonical: "https://aristolegion.com/manifesto",
+  },
   openGraph: {
     title: "The Aristolegion Manifesto",
     description:
@@ -53,7 +56,7 @@ export default function ManifestoPage() {
           </article>
 
           <div className="mx-auto mt-16 max-w-[68ch] border-t border-charcoal/15 pt-12 text-center">
-            <Button href="/#library" variant="primary">
+            <Button href="/library" variant="primary">
               Explore the Library
             </Button>
           </div>
