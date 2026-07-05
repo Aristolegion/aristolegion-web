@@ -56,6 +56,8 @@ export function ApplicationForm() {
     setStatus("submitting");
     setErrorMessage("");
 
+    console.log("[ApplicationForm] submitting to /api/inner-circle/apply");
+
     try {
       const response = await fetch("/api/inner-circle/apply", {
         method: "POST",
@@ -64,6 +66,12 @@ export function ApplicationForm() {
       });
 
       const data = await response.json();
+
+      console.log("[ApplicationForm] response", {
+        status: response.status,
+        ok: response.ok,
+        data,
+      });
 
       if (!response.ok || !data.success) {
         setErrorMessage(
@@ -74,7 +82,8 @@ export function ApplicationForm() {
       }
 
       setStatus("success");
-    } catch {
+    } catch (error) {
+      console.error("[ApplicationForm] submit failed", error);
       setErrorMessage(
         "Something went wrong. Please check your connection and try again."
       );
