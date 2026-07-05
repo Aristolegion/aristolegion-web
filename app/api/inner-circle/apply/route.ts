@@ -57,7 +57,7 @@ export async function POST(request: Request) {
     result = await supabaseInsert("inner_circle_applications", {
       full_name: name.trim(),
       email: email.trim().toLowerCase(),
-      current_role: role.trim(),
+      role_title: role.trim(),
       why_join: whyJoin.trim(),
       capability_goal: capability.trim(),
       contribution: contribution.trim(),

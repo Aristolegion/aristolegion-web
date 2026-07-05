@@ -8,7 +8,7 @@ create table if not exists inner_circle_applications (
   id uuid primary key default gen_random_uuid(),
   full_name text not null,
   email text not null,
-  current_role text not null,
+  role_title text not null,
   why_join text not null,
   capability_goal text not null,
   contribution text not null,
