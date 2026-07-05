@@ -27,9 +27,12 @@ const inputClasses =
 
 const labelClasses = "mb-2 block font-body text-sm font-medium text-charcoal";
 
+type SubmitStatus = "idle" | "submitting" | "success" | "error";
+
 export function ApplicationForm() {
   const [formData, setFormData] = useState<FormState>(initialState);
-  const [submitted, setSubmitted] = useState(false);
+  const [status, setStatus] = useState<SubmitStatus>("idle");
+  const [errorMessage, setErrorMessage] = useState("");
 
   const nameId = useId();
   const emailId = useId();
@@ -48,12 +51,38 @@ export function ApplicationForm() {
     };
   }
 
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    setSubmitted(true);
+    setStatus("submitting");
+    setErrorMessage("");
+
+    try {
+      const response = await fetch("/api/inner-circle/apply", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(formData),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok || !data.success) {
+        setErrorMessage(
+          data.error || "Something went wrong. Please try again."
+        );
+        setStatus("error");
+        return;
+      }
+
+      setStatus("success");
+    } catch {
+      setErrorMessage(
+        "Something went wrong. Please check your connection and try again."
+      );
+      setStatus("error");
+    }
   }
 
-  if (submitted) {
+  if (status === "success") {
     return (
       <Card tone="ivory" className="mx-auto max-w-xl p-8 text-center md:p-12">
         <p className="font-display text-2xl font-semibold text-charcoal">
@@ -163,9 +192,19 @@ export function ApplicationForm() {
         </div>
       </div>
 
+      {status === "error" && (
+        <p role="alert" className="mt-6 text-center font-body text-sm text-crimson">
+          {errorMessage}
+        </p>
+      )}
+
       <div className="mt-10 text-center">
-        <Button type="submit" variant="primary">
-          Submit Application
+        <Button
+          type="submit"
+          variant="primary"
+          disabled={status === "submitting"}
+        >
+          {status === "submitting" ? "Submitting…" : "Submit Application"}
         </Button>
       </div>
     </form>

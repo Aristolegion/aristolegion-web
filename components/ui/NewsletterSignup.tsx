@@ -26,21 +26,51 @@ const toneClasses: Record<
   },
 };
 
+type SubmitStatus = "idle" | "submitting" | "success" | "error";
+
 export function NewsletterSignup({ tone = "navy" }: NewsletterSignupProps) {
   const [email, setEmail] = useState("");
   const [consent, setConsent] = useState(false);
-  const [submitted, setSubmitted] = useState(false);
+  const [status, setStatus] = useState<SubmitStatus>("idle");
+  const [errorMessage, setErrorMessage] = useState("");
   const emailId = useId();
   const consentId = useId();
   const classes = toneClasses[tone];
 
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!email || !consent) return;
-    setSubmitted(true);
+
+    setStatus("submitting");
+    setErrorMessage("");
+
+    try {
+      const response = await fetch("/api/newsletter/subscribe", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, consent, source: "website" }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok || !data.success) {
+        setErrorMessage(
+          data.error || "Something went wrong. Please try again."
+        );
+        setStatus("error");
+        return;
+      }
+
+      setStatus("success");
+    } catch {
+      setErrorMessage(
+        "Something went wrong. Please check your connection and try again."
+      );
+      setStatus("error");
+    }
   }
 
-  if (submitted) {
+  if (status === "success") {
     return (
       <p
         role="status"
@@ -71,10 +101,20 @@ export function NewsletterSignup({ tone = "navy" }: NewsletterSignupProps) {
           placeholder="you@example.com"
           className={`h-12 flex-1 border px-4 font-body text-sm transition-colors duration-200 focus:outline-none ${classes.input}`}
         />
-        <Button type="submit" variant="primary">
-          Subscribe
+        <Button
+          type="submit"
+          variant="primary"
+          disabled={status === "submitting"}
+        >
+          {status === "submitting" ? "Subscribing…" : "Subscribe"}
         </Button>
       </div>
+
+      {status === "error" && (
+        <p role="alert" className="font-body text-xs text-crimson">
+          {errorMessage}
+        </p>
+      )}
 
       <label
         htmlFor={consentId}

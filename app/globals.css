@@ -10,6 +10,8 @@
   --color-charcoal: #1c2541;
   /* Silver Gray: secondary/muted text on navy sections */
   --color-ivory-muted: #a9b4c2;
+  /* Crimson: Error State per PRD Color System */
+  --color-crimson: #e74c3c;
 
   /* Semantic aliases */
   --background: var(--color-ivory);
@@ -23,6 +25,7 @@
   --color-ivory: var(--color-ivory);
   --color-charcoal: var(--color-charcoal);
   --color-ivory-muted: var(--color-ivory-muted);
+  --color-crimson: var(--color-crimson);
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --font-sans: var(--font-inter);
