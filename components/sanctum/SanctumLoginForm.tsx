@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/Button";
 
 type SubmitStatus = "idle" | "submitting" | "error";
 
-export function AdminLoginForm() {
+export function SanctumLoginForm() {
   const [password, setPassword] = useState("");
   const [status, setStatus] = useState<SubmitStatus>("idle");
   const [errorMessage, setErrorMessage] = useState("");
@@ -16,7 +16,7 @@ export function AdminLoginForm() {
     setErrorMessage("");
 
     try {
-      const response = await fetch("/api/admin/login", {
+      const response = await fetch("/api/sanctum/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ password }),

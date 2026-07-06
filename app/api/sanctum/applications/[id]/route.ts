@@ -1,7 +1,7 @@
 import { cookies } from "next/headers";
-import { ADMIN_SESSION_COOKIE, isValidAdminSessionToken } from "@/lib/admin/auth";
+import { SANCTUM_SESSION_COOKIE, isValidSessionToken } from "@/lib/sanctum/auth";
 import { supabaseUpdate } from "@/lib/supabase";
-import type { ApplicationStatus } from "@/lib/admin/types";
+import type { ApplicationStatus } from "@/lib/sanctum/types";
 
 const VALID_STATUSES: ApplicationStatus[] = ["pending", "accepted", "rejected"];
 
@@ -15,9 +15,9 @@ interface RouteParams {
 
 export async function PATCH(request: Request, { params }: RouteParams) {
   const cookieStore = await cookies();
-  const token = cookieStore.get(ADMIN_SESSION_COOKIE)?.value;
+  const token = cookieStore.get(SANCTUM_SESSION_COOKIE)?.value;
 
-  if (!isValidAdminSessionToken(token)) {
+  if (!isValidSessionToken(token)) {
     return Response.json(
       { success: false, error: "Unauthorized." },
       { status: 401 }
@@ -68,7 +68,7 @@ export async function PATCH(request: Request, { params }: RouteParams) {
 
     return Response.json({ success: true });
   } catch (error) {
-    console.error("ADMIN STATUS UPDATE ERROR:", error);
+    console.error("SANCTUM STATUS UPDATE ERROR:", error);
     return Response.json(
       { success: false, error: "Unable to update status. Please try again." },
       { status: 500 }

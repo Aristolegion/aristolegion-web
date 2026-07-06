@@ -6,9 +6,9 @@ import type {
   ApplicationStatus,
   InnerCircleApplication,
   NewsletterSubscriber,
-} from "@/lib/admin/types";
+} from "@/lib/sanctum/types";
 
-interface AdminDashboardProps {
+interface SanctumDashboardProps {
   applications: InnerCircleApplication[];
   subscribers: NewsletterSubscriber[];
   loadError: string | null;
@@ -62,11 +62,11 @@ function MetricCard({ label, value }: { label: string; value: number }) {
   );
 }
 
-export function AdminDashboard({
+export function SanctumDashboard({
   applications: initialApplications,
   subscribers,
   loadError,
-}: AdminDashboardProps) {
+}: SanctumDashboardProps) {
   const [applications, setApplications] = useState(initialApplications);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
@@ -93,7 +93,7 @@ export function AdminDashboard({
     setUpdateError("");
 
     try {
-      const response = await fetch(`/api/admin/applications/${id}`, {
+      const response = await fetch(`/api/sanctum/applications/${id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ status }),
@@ -119,7 +119,7 @@ export function AdminDashboard({
   async function handleLogout() {
     setLoggingOut(true);
     try {
-      await fetch("/api/admin/logout", { method: "POST" });
+      await fetch("/api/sanctum/logout", { method: "POST" });
     } finally {
       window.location.reload();
     }
