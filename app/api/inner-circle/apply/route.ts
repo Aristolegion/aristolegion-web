@@ -19,26 +19,14 @@ function isValidEmail(value: string): boolean {
 
 // Supabase's PostgREST error body is JSON (e.g. { code, message, details,
 // hint }), but lib/supabase.ts hands it back as raw response text. Parse it
-// so logs and the temporary debug response show structured details instead
-// of an opaque string.
+// so server logs show structured details instead of an opaque string. This
+// is never sent to the client — see the generic response below.
 function parseSupabaseErrorBody(rawMessage: string): unknown {
   try {
     return JSON.parse(rawMessage);
   } catch {
     return rawMessage;
   }
-}
-
-function extractErrorMessage(details: unknown, fallback: string): string {
-  if (
-    typeof details === "object" &&
-    details !== null &&
-    "message" in details &&
-    typeof (details as { message: unknown }).message === "string"
-  ) {
-    return (details as { message: string }).message;
-  }
-  return fallback;
 }
 
 export async function POST(request: Request) {
@@ -87,25 +75,15 @@ export async function POST(request: Request) {
     });
 
     if (!result.ok) {
-      const details = parseSupabaseErrorBody(result.message);
-
       console.error("SUPABASE INSERT ERROR:", {
         status: result.status,
-        details,
+        details: parseSupabaseErrorBody(result.message),
       });
 
-      // TEMPORARY: surfaces the real Supabase error (column mismatch,
-      // constraint violation, missing column, etc.) in the response so it
-      // shows up in Vercel Function Logs and the browser while we diagnose
-      // the 502. Revert to a generic message once the root cause is fixed.
       return Response.json(
         {
           success: false,
-          error: extractErrorMessage(
-            details,
-            "We could not process your application. Please try again."
-          ),
-          details,
+          error: "We could not process your application. Please try again.",
         },
         { status: 500 }
       );

@@ -10,6 +10,18 @@ function isValidEmail(value: string): boolean {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
 }
 
+// Supabase's PostgREST error body is JSON (e.g. { code, message, details,
+// hint }), but lib/supabase.ts hands it back as raw response text. Parse it
+// so server logs show structured details instead of an opaque string. This
+// is never sent to the client — see the generic response below.
+function parseSupabaseErrorBody(rawMessage: string): unknown {
+  try {
+    return JSON.parse(rawMessage);
+  } catch {
+    return rawMessage;
+  }
+}
+
 export async function POST(request: Request) {
   let payload: SubscribePayload;
 
@@ -63,6 +75,11 @@ export async function POST(request: Request) {
     if (result.status === 409) {
       return Response.json({ success: true, alreadySubscribed: true });
     }
+
+    console.error("SUPABASE INSERT ERROR:", {
+      status: result.status,
+      details: parseSupabaseErrorBody(result.message),
+    });
 
     return Response.json(
       {
