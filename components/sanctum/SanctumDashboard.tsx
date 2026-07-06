@@ -3,8 +3,10 @@
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/Button";
 import { PublicationsSection } from "@/components/sanctum/PublicationsSection";
+import { EssaysSection } from "@/components/sanctum/EssaysSection";
 import type {
   ApplicationStatus,
+  EssayWithPreview,
   InnerCircleApplication,
   NewsletterSubscriber,
   PublicationWithPreview,
@@ -14,6 +16,7 @@ interface SanctumDashboardProps {
   applications: InnerCircleApplication[];
   subscribers: NewsletterSubscriber[];
   publications: PublicationWithPreview[];
+  essays: EssayWithPreview[];
   loadError: string | null;
 }
 
@@ -69,6 +72,7 @@ export function SanctumDashboard({
   applications: initialApplications,
   subscribers,
   publications,
+  essays,
   loadError,
 }: SanctumDashboardProps) {
   const [applications, setApplications] = useState(initialApplications);
@@ -163,10 +167,11 @@ export function SanctumDashboard({
           </p>
         )}
 
-        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
           <MetricCard label="Total Newsletter Subscribers" value={subscribers.length} />
           <MetricCard label="Total Inner Circle Applications" value={applications.length} />
           <MetricCard label="Total Publications" value={publications.length} />
+          <MetricCard label="Total Essays" value={essays.length} />
         </div>
 
         <section className="mt-12">
@@ -279,6 +284,8 @@ export function SanctumDashboard({
         </section>
 
         <PublicationsSection initialPublications={publications} />
+
+        <EssaysSection initialEssays={essays} />
       </main>
 
       {selectedApplication && (

@@ -37,3 +37,7 @@ export function buildPdfPath(slug: string): string {
 export function buildCoverPath(slug: string, extension: string): string {
   return `covers/${slug}-cover.${extension}`;
 }
+
+export function buildEssayCoverPath(slug: string, extension: string): string {
+  return `essay-covers/${slug}-cover.${extension}`;
+}

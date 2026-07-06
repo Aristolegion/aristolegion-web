@@ -39,3 +39,22 @@ export interface PublicationWithPreview extends Publication {
   pdfPreviewUrl: string | null;
   coverPreviewUrl: string | null;
 }
+
+export type EssayStatus = "draft" | "published";
+
+export interface Essay {
+  id: string;
+  title: string;
+  slug: string;
+  excerpt: string;
+  content: string;
+  cover_image_url: string | null;
+  status: string;
+  linkedin_url: string | null;
+  published_at: string | null;
+  created_at: string;
+}
+
+export interface EssayWithPreview extends Essay {
+  coverPreviewUrl: string | null;
+}

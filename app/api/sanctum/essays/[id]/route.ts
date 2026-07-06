@@ -2,12 +2,10 @@ import { cookies } from "next/headers";
 import { SANCTUM_SESSION_COOKIE, isValidSessionToken } from "@/lib/sanctum/auth";
 import {
   PUBLICATIONS_BUCKET,
-  buildCoverPath,
-  buildPdfPath,
+  buildEssayCoverPath,
   getExtensionFromPath,
   getImageExtension,
   isImageFile,
-  isPdfFile,
 } from "@/lib/sanctum/publicationStorage";
 import {
   supabaseDelete,
@@ -17,9 +15,9 @@ import {
   supabaseUpdateReturning,
   supabaseUploadFile,
 } from "@/lib/supabase";
-import type { Publication, PublicationStatus } from "@/lib/sanctum/types";
+import type { Essay, EssayStatus } from "@/lib/sanctum/types";
 
-const VALID_STATUSES: PublicationStatus[] = ["draft", "published"];
+const VALID_STATUSES: EssayStatus[] = ["draft", "published"];
 const SLUG_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 
 interface RouteParams {
@@ -49,20 +47,20 @@ export async function PATCH(request: Request, { params }: RouteParams) {
 
   const title = formData.get("title");
   const slug = formData.get("slug");
-  const category = formData.get("category");
-  const description = formData.get("description");
+  const excerpt = formData.get("excerpt");
+  const content = formData.get("content");
   const status = formData.get("status");
-  const pdf = formData.get("pdf");
+  const linkedinUrl = formData.get("linkedinUrl");
   const cover = formData.get("cover");
 
   if (
     !isNonEmptyString(title) ||
     !isNonEmptyString(slug) ||
-    !isNonEmptyString(category) ||
-    !isNonEmptyString(description)
+    !isNonEmptyString(excerpt) ||
+    !isNonEmptyString(content)
   ) {
     return Response.json(
-      { success: false, error: "Title, slug, category, and description are required." },
+      { success: false, error: "Title, slug, excerpt, and essay body are required." },
       { status: 400 }
     );
   }
@@ -74,63 +72,27 @@ export async function PATCH(request: Request, { params }: RouteParams) {
     );
   }
 
-  if (typeof status !== "string" || !VALID_STATUSES.includes(status as PublicationStatus)) {
+  if (typeof status !== "string" || !VALID_STATUSES.includes(status as EssayStatus)) {
     return Response.json({ success: false, error: "Invalid status." }, { status: 400 });
   }
 
   try {
-    const existingResult = await supabaseSelect<Publication>("publications", {
+    const existingResult = await supabaseSelect<Essay>("essays", {
       filter: { id: `eq.${id}` },
     });
 
     if (!existingResult.ok || existingResult.data.length === 0) {
-      return Response.json(
-        { success: false, error: "Publication not found." },
-        { status: 404 }
-      );
+      return Response.json({ success: false, error: "Essay not found." }, { status: 404 });
     }
 
     const existing = existingResult.data[0];
     const trimmedSlug = slug.trim();
     const slugChanged = trimmedSlug !== existing.slug;
 
-    let pdfPath = existing.pdf_url;
-
-    if (isPdfFile(pdf)) {
-      pdfPath = buildPdfPath(trimmedSlug);
-      const uploadResult = await supabaseUploadFile(PUBLICATIONS_BUCKET, pdfPath, pdf, "application/pdf");
-
-      if (!uploadResult.ok) {
-        console.error("SANCTUM PUBLICATION UPLOAD ERROR:", {
-          status: uploadResult.status,
-          message: uploadResult.message,
-        });
-        return Response.json(
-          { success: false, error: "Unable to upload the PDF. Please try again." },
-          { status: 500 }
-        );
-      }
-    } else if (slugChanged && existing.pdf_url) {
-      const newPdfPath = buildPdfPath(trimmedSlug);
-      const moveResult = await supabaseMoveFile(PUBLICATIONS_BUCKET, existing.pdf_url, newPdfPath);
-
-      if (!moveResult.ok) {
-        console.error("SANCTUM PUBLICATION MOVE ERROR:", {
-          status: moveResult.status,
-          message: moveResult.message,
-        });
-        return Response.json(
-          { success: false, error: "Unable to rename the PDF file. Please try again." },
-          { status: 500 }
-        );
-      }
-      pdfPath = newPdfPath;
-    }
-
     let coverPath = existing.cover_image_url;
 
     if (isImageFile(cover)) {
-      coverPath = buildCoverPath(trimmedSlug, getImageExtension(cover));
+      coverPath = buildEssayCoverPath(trimmedSlug, getImageExtension(cover));
       const uploadResult = await supabaseUploadFile(
         PUBLICATIONS_BUCKET,
         coverPath,
@@ -139,7 +101,8 @@ export async function PATCH(request: Request, { params }: RouteParams) {
       );
 
       if (!uploadResult.ok) {
-        console.error("SANCTUM PUBLICATION UPLOAD ERROR:", {
+        console.error("ESSAY CMS ERROR:", {
+          source: "cover_upload",
           status: uploadResult.status,
           message: uploadResult.message,
         });
@@ -149,11 +112,12 @@ export async function PATCH(request: Request, { params }: RouteParams) {
         );
       }
     } else if (slugChanged && existing.cover_image_url) {
-      const newCoverPath = buildCoverPath(trimmedSlug, getExtensionFromPath(existing.cover_image_url));
+      const newCoverPath = buildEssayCoverPath(trimmedSlug, getExtensionFromPath(existing.cover_image_url));
       const moveResult = await supabaseMoveFile(PUBLICATIONS_BUCKET, existing.cover_image_url, newCoverPath);
 
       if (!moveResult.ok) {
-        console.error("SANCTUM PUBLICATION MOVE ERROR:", {
+        console.error("ESSAY CMS ERROR:", {
+          source: "cover_move",
           status: moveResult.status,
           message: moveResult.message,
         });
@@ -168,35 +132,36 @@ export async function PATCH(request: Request, { params }: RouteParams) {
     const patch: Record<string, unknown> = {
       title: title.trim(),
       slug: trimmedSlug,
-      category: category.trim(),
-      description: description.trim(),
+      excerpt: excerpt.trim(),
+      content: content.trim(),
       status,
-      pdf_url: pdfPath,
       cover_image_url: coverPath,
+      linkedin_url: isNonEmptyString(linkedinUrl) ? linkedinUrl.trim() : null,
     };
 
     if (status === "published" && !existing.published_at) {
       patch.published_at = new Date().toISOString();
     }
 
-    const result = await supabaseUpdateReturning<Publication>("publications", { id }, patch);
+    const result = await supabaseUpdateReturning<Essay>("essays", { id }, patch);
 
     if (!result.ok) {
-      console.error("SANCTUM PUBLICATION UPDATE ERROR:", {
+      console.error("ESSAY CMS ERROR:", {
+        source: "update",
         status: result.status,
         message: result.message,
       });
       return Response.json(
-        { success: false, error: "Unable to save the publication. Please try again." },
+        { success: false, error: "Unable to save the essay. Please try again." },
         { status: 500 }
       );
     }
 
-    return Response.json({ success: true, publication: result.data });
+    return Response.json({ success: true, essay: result.data });
   } catch (error) {
-    console.error("SANCTUM PUBLICATION UPDATE ERROR:", error);
+    console.error("ESSAY CMS ERROR:", { source: "update", error });
     return Response.json(
-      { success: false, error: "Unable to save the publication. Please try again." },
+      { success: false, error: "Unable to save the essay. Please try again." },
       { status: 500 }
     );
   }
@@ -213,55 +178,51 @@ export async function DELETE(request: Request, { params }: RouteParams) {
   const { id } = await params;
 
   try {
-    const existingResult = await supabaseSelect<Publication>("publications", {
+    const existingResult = await supabaseSelect<Essay>("essays", {
       filter: { id: `eq.${id}` },
     });
 
     if (!existingResult.ok || existingResult.data.length === 0) {
-      return Response.json(
-        { success: false, error: "Publication not found." },
-        { status: 404 }
-      );
+      return Response.json({ success: false, error: "Essay not found." }, { status: 404 });
     }
 
     const existing = existingResult.data[0];
-    const paths = [existing.pdf_url, existing.cover_image_url].filter(
-      (path): path is string => Boolean(path)
-    );
 
-    if (paths.length > 0) {
-      const deleteFilesResult = await supabaseDeleteFile(PUBLICATIONS_BUCKET, paths);
+    if (existing.cover_image_url) {
+      const deleteFilesResult = await supabaseDeleteFile(PUBLICATIONS_BUCKET, [existing.cover_image_url]);
 
       if (!deleteFilesResult.ok) {
-        console.error("SANCTUM PUBLICATION DELETE ERROR:", {
+        console.error("ESSAY CMS ERROR:", {
+          source: "cover_delete",
           status: deleteFilesResult.status,
           message: deleteFilesResult.message,
         });
         return Response.json(
-          { success: false, error: "Unable to delete the publication's files. Please try again." },
+          { success: false, error: "Unable to delete the essay's cover image. Please try again." },
           { status: 500 }
         );
       }
     }
 
-    const deleteRowResult = await supabaseDelete("publications", { id });
+    const deleteRowResult = await supabaseDelete("essays", { id });
 
     if (!deleteRowResult.ok) {
-      console.error("SANCTUM PUBLICATION DELETE ERROR:", {
+      console.error("ESSAY CMS ERROR:", {
+        source: "delete",
         status: deleteRowResult.status,
         message: deleteRowResult.message,
       });
       return Response.json(
-        { success: false, error: "Unable to delete the publication. Please try again." },
+        { success: false, error: "Unable to delete the essay. Please try again." },
         { status: 500 }
       );
     }
 
     return Response.json({ success: true });
   } catch (error) {
-    console.error("SANCTUM PUBLICATION DELETE ERROR:", error);
+    console.error("ESSAY CMS ERROR:", { source: "delete", error });
     return Response.json(
-      { success: false, error: "Unable to delete the publication. Please try again." },
+      { success: false, error: "Unable to delete the essay. Please try again." },
       { status: 500 }
     );
   }

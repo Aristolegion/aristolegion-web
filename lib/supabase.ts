@@ -17,6 +17,10 @@ type SupabaseUpdateResult =
   | { ok: true }
   | { ok: false; status: number; message: string };
 
+type SupabaseDeleteResult =
+  | { ok: true }
+  | { ok: false; status: number; message: string };
+
 type SupabaseUpdateReturningResult<T> =
   | { ok: true; data: T }
   | { ok: false; status: number; message: string };
@@ -141,6 +145,35 @@ export async function supabaseUpdate(
   return { ok: true };
 }
 
+export async function supabaseDelete(
+  table: string,
+  match: Record<string, string>
+): Promise<SupabaseDeleteResult> {
+  const { url, key } = requireConfig();
+
+  const params = new URLSearchParams();
+  for (const [column, value] of Object.entries(match)) {
+    params.set(column, `eq.${value}`);
+  }
+
+  const response = await fetch(`${url}/rest/v1/${table}?${params.toString()}`, {
+    method: "DELETE",
+    headers: {
+      apikey: key,
+      Authorization: `Bearer ${key}`,
+      Prefer: "return=minimal",
+    },
+    cache: "no-store",
+  });
+
+  if (!response.ok) {
+    const message = await response.text().catch(() => "");
+    return { ok: false, status: response.status, message };
+  }
+
+  return { ok: true };
+}
+
 export async function supabaseInsertReturning<T = Record<string, unknown>>(
   table: string,
   row: Record<string, unknown>
@@ -227,6 +260,31 @@ export async function supabaseUploadFile(
       "x-upsert": "true",
     },
     body: arrayBuffer,
+    cache: "no-store",
+  });
+
+  if (!response.ok) {
+    const message = await response.text().catch(() => "");
+    return { ok: false, status: response.status, message };
+  }
+
+  return { ok: true };
+}
+
+export async function supabaseDeleteFile(
+  bucket: string,
+  paths: string[]
+): Promise<SupabaseStorageResult> {
+  const { url, key } = requireConfig();
+
+  const response = await fetch(`${url}/storage/v1/object/${bucket}`, {
+    method: "DELETE",
+    headers: {
+      "Content-Type": "application/json",
+      apikey: key,
+      Authorization: `Bearer ${key}`,
+    },
+    body: JSON.stringify({ prefixes: paths }),
     cache: "no-store",
   });
 

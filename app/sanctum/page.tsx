@@ -5,6 +5,8 @@ import { SanctumLoginForm } from "@/components/sanctum/SanctumLoginForm";
 import { SANCTUM_SESSION_COOKIE, isValidSessionToken } from "@/lib/sanctum/auth";
 import { supabaseCreateSignedUrl, supabaseSelect } from "@/lib/supabase";
 import type {
+  Essay,
+  EssayWithPreview,
   InnerCircleApplication,
   NewsletterSubscriber,
   Publication,
@@ -32,10 +34,11 @@ export default async function SanctumPage() {
   let applications: InnerCircleApplication[] = [];
   let subscribers: NewsletterSubscriber[] = [];
   let publications: PublicationWithPreview[] = [];
+  let essays: EssayWithPreview[] = [];
   let loadError: string | null = null;
 
   try {
-    const [applicationsResult, subscribersResult, publicationsResult] = await Promise.all([
+    const [applicationsResult, subscribersResult, publicationsResult, essaysResult] = await Promise.all([
       supabaseSelect<InnerCircleApplication>("inner_circle_applications", {
         order: "created_at.desc",
       }),
@@ -43,6 +46,9 @@ export default async function SanctumPage() {
         order: "created_at.desc",
       }),
       supabaseSelect<Publication>("publications", {
+        order: "created_at.desc",
+      }),
+      supabaseSelect<Essay>("essays", {
         order: "created_at.desc",
       }),
     ]);
@@ -115,6 +121,34 @@ export default async function SanctumPage() {
       });
       loadError = "Unable to load some dashboard data. Please refresh.";
     }
+
+    if (essaysResult.ok) {
+      essays = await Promise.all(
+        essaysResult.data.map(async (essay) => {
+          const coverSigned = essay.cover_image_url
+            ? await supabaseCreateSignedUrl(PDF_BUCKET, essay.cover_image_url, PREVIEW_URL_TTL_SECONDS)
+            : null;
+
+          if (coverSigned && !coverSigned.ok) {
+            console.error("ESSAY CMS ERROR:", {
+              source: "cover_signed_url",
+              essayId: essay.id,
+              status: coverSigned.status,
+              message: coverSigned.message,
+            });
+          }
+
+          return { ...essay, coverPreviewUrl: coverSigned?.ok ? coverSigned.url : null };
+        })
+      );
+    } else {
+      console.error("ESSAY CMS ERROR:", {
+        source: "fetch",
+        status: essaysResult.status,
+        message: essaysResult.message,
+      });
+      loadError = "Unable to load some dashboard data. Please refresh.";
+    }
   } catch (error) {
     console.error("SANCTUM LOAD ERROR:", error);
     loadError = "Unable to load dashboard data. Please refresh.";
@@ -125,6 +159,7 @@ export default async function SanctumPage() {
       applications={applications}
       subscribers={subscribers}
       publications={publications}
+      essays={essays}
       loadError={loadError}
     />
   );

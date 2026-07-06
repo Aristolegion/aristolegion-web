@@ -93,3 +93,35 @@ grant all on public.publications to service_role;
 insert into storage.buckets (id, name, public)
 values ('publications', 'publications', false)
 on conflict (id) do nothing;
+
+-- Aristolegion essays (Sanctum essay management).
+-- Matches the columns read/written by:
+--   app/api/sanctum/essays/route.ts
+--   app/api/sanctum/essays/[id]/route.ts
+--   app/essays/page.tsx, app/essays/[slug]/page.tsx
+
+create table if not exists essays (
+  id uuid primary key default gen_random_uuid(),
+  title text not null,
+  slug text not null unique,
+  excerpt text not null,
+  content text not null,
+  cover_image_url text,
+  status text not null default 'draft' check (status in ('draft', 'published')),
+  linkedin_url text,
+  published_at timestamptz,
+  created_at timestamptz not null default now()
+);
+
+alter table essays enable row level security;
+
+-- Same posture as publications: no anon policies, service role only, and
+-- the full CRUD grant applied up front this time (not after the fact).
+grant all on public.essays to service_role;
+
+-- Essay cover images reuse the existing private "publications" bucket under
+-- a third subfolder, keyed by slug:
+--   essay-covers/<slug>-cover.<jpg|png|webp>
+-- Same signed-URL-only read pattern as PDFs and publication covers above —
+-- no new bucket needed, no public access, cover_image_url stores the
+-- storage path, not a public URL.

@@ -3,27 +3,29 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { Button } from "@/components/ui/Button";
 import { DeleteConfirmModal } from "@/components/sanctum/DeleteConfirmModal";
-import type { PublicationWithPreview } from "@/lib/sanctum/types";
+import type { EssayWithPreview } from "@/lib/sanctum/types";
 
 const SITE_URL = "https://www.aristolegion.com";
 
-interface PublicationsSectionProps {
-  initialPublications: PublicationWithPreview[];
+interface EssaysSectionProps {
+  initialEssays: EssayWithPreview[];
 }
 
 interface FormState {
   title: string;
   slug: string;
-  category: string;
-  description: string;
+  excerpt: string;
+  content: string;
+  linkedinUrl: string;
   status: "draft" | "published";
 }
 
 const EMPTY_FORM: FormState = {
   title: "",
   slug: "",
-  category: "",
-  description: "",
+  excerpt: "",
+  content: "",
+  linkedinUrl: "",
   status: "draft",
 };
 
@@ -44,9 +46,8 @@ function formatDate(iso: string | null): string {
   });
 }
 
-// Normalizes every uploaded cover to .webp client-side via canvas, so the
-// stored file matches the "publication-slug-cover.webp" storage convention
-// without needing a server-side image-processing dependency.
+// Normalizes every uploaded cover to .webp client-side via canvas — same
+// approach as PublicationsSection, no server-side image dependency needed.
 function convertImageToWebp(file: File, quality = 0.85): Promise<File> {
   return new Promise((resolve) => {
     const img = new Image();
@@ -88,28 +89,25 @@ function convertImageToWebp(file: File, quality = 0.85): Promise<File> {
   });
 }
 
-function buildFormData(form: FormState, pdfFile: File | null, coverFile: File | null): FormData {
+function buildFormData(form: FormState, coverFile: File | null): FormData {
   const formData = new FormData();
   formData.set("title", form.title);
   formData.set("slug", form.slug);
-  formData.set("category", form.category);
-  formData.set("description", form.description);
+  formData.set("excerpt", form.excerpt);
+  formData.set("content", form.content);
+  formData.set("linkedinUrl", form.linkedinUrl);
   formData.set("status", form.status);
-  if (pdfFile) {
-    formData.set("pdf", pdfFile);
-  }
   if (coverFile) {
     formData.set("cover", coverFile);
   }
   return formData;
 }
 
-export function PublicationsSection({ initialPublications }: PublicationsSectionProps) {
-  const [publications, setPublications] = useState(initialPublications);
+export function EssaysSection({ initialEssays }: EssaysSectionProps) {
+  const [essays, setEssays] = useState(initialEssays);
   const [modalMode, setModalMode] = useState<"create" | "edit" | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState<FormState>(EMPTY_FORM);
-  const [pdfFile, setPdfFile] = useState<File | null>(null);
   const [coverFile, setCoverFile] = useState<File | null>(null);
   const [convertingCover, setConvertingCover] = useState(false);
   const [slugTouched, setSlugTouched] = useState(false);
@@ -136,7 +134,6 @@ export function PublicationsSection({ initialPublications }: PublicationsSection
 
   function openCreateModal() {
     setForm(EMPTY_FORM);
-    setPdfFile(null);
     setCoverFile(null);
     setSlugTouched(false);
     setFormError("");
@@ -144,19 +141,19 @@ export function PublicationsSection({ initialPublications }: PublicationsSection
     setModalMode("create");
   }
 
-  function openEditModal(publication: PublicationWithPreview) {
+  function openEditModal(essay: EssayWithPreview) {
     setForm({
-      title: publication.title,
-      slug: publication.slug,
-      category: publication.category,
-      description: publication.description,
-      status: publication.status === "published" ? "published" : "draft",
+      title: essay.title,
+      slug: essay.slug,
+      excerpt: essay.excerpt,
+      content: essay.content,
+      linkedinUrl: essay.linkedin_url ?? "",
+      status: essay.status === "published" ? "published" : "draft",
     });
-    setPdfFile(null);
     setCoverFile(null);
     setSlugTouched(true);
     setFormError("");
-    setEditingId(publication.id);
+    setEditingId(essay.id);
     setModalMode("edit");
   }
 
@@ -191,50 +188,30 @@ export function PublicationsSection({ initialPublications }: PublicationsSection
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setFormError("");
-
-    if (modalMode === "create" && !pdfFile) {
-      setFormError("A PDF file is required.");
-      return;
-    }
-
-    if (modalMode === "create" && !coverFile) {
-      setFormError("A cover image is required.");
-      return;
-    }
-
     setSubmitting(true);
 
     try {
-      const formData = buildFormData(form, pdfFile, coverFile);
+      const formData = buildFormData(form, coverFile);
       const response =
         modalMode === "create"
-          ? await fetch("/api/sanctum/publications", { method: "POST", body: formData })
-          : await fetch(`/api/sanctum/publications/${editingId}`, {
-              method: "PATCH",
-              body: formData,
-            });
+          ? await fetch("/api/sanctum/essays", { method: "POST", body: formData })
+          : await fetch(`/api/sanctum/essays/${editingId}`, { method: "PATCH", body: formData });
 
       const data = await response.json();
 
       if (!response.ok || !data.success) {
-        setFormError(data.error || "Unable to save the publication.");
+        setFormError(data.error || "Unable to save the essay.");
         return;
       }
 
-      const saved: PublicationWithPreview = {
-        ...data.publication,
-        pdfPreviewUrl: null,
-        coverPreviewUrl: null,
-      };
+      const saved: EssayWithPreview = { ...data.essay, coverPreviewUrl: null };
 
-      setPublications((prev) => {
+      setEssays((prev) => {
         if (modalMode === "create") {
           return [saved, ...prev];
         }
         return prev.map((item) =>
-          item.id === saved.id
-            ? { ...saved, pdfPreviewUrl: item.pdfPreviewUrl, coverPreviewUrl: item.coverPreviewUrl }
-            : item
+          item.id === saved.id ? { ...saved, coverPreviewUrl: item.coverPreviewUrl } : item
         );
       });
 
@@ -246,20 +223,21 @@ export function PublicationsSection({ initialPublications }: PublicationsSection
     }
   }
 
-  async function handleToggleStatus(publication: PublicationWithPreview) {
-    setTogglingId(publication.id);
+  async function handleToggleStatus(essay: EssayWithPreview) {
+    setTogglingId(essay.id);
     setListError("");
 
-    const nextStatus = publication.status === "published" ? "draft" : "published";
+    const nextStatus = essay.status === "published" ? "draft" : "published";
     const formData = new FormData();
-    formData.set("title", publication.title);
-    formData.set("slug", publication.slug);
-    formData.set("category", publication.category);
-    formData.set("description", publication.description);
+    formData.set("title", essay.title);
+    formData.set("slug", essay.slug);
+    formData.set("excerpt", essay.excerpt);
+    formData.set("content", essay.content);
+    formData.set("linkedinUrl", essay.linkedin_url ?? "");
     formData.set("status", nextStatus);
 
     try {
-      const response = await fetch(`/api/sanctum/publications/${publication.id}`, {
+      const response = await fetch(`/api/sanctum/essays/${essay.id}`, {
         method: "PATCH",
         body: formData,
       });
@@ -271,11 +249,9 @@ export function PublicationsSection({ initialPublications }: PublicationsSection
         return;
       }
 
-      setPublications((prev) =>
+      setEssays((prev) =>
         prev.map((item) =>
-          item.id === publication.id
-            ? { ...data.publication, pdfPreviewUrl: item.pdfPreviewUrl, coverPreviewUrl: item.coverPreviewUrl }
-            : item
+          item.id === essay.id ? { ...data.essay, coverPreviewUrl: item.coverPreviewUrl } : item
         )
       );
     } catch {
@@ -285,11 +261,11 @@ export function PublicationsSection({ initialPublications }: PublicationsSection
     }
   }
 
-  async function handleCopyLink(publication: PublicationWithPreview) {
+  async function handleCopyLink(essay: EssayWithPreview) {
     try {
-      await navigator.clipboard.writeText(`${SITE_URL}/library/${publication.slug}`);
-      setCopiedId(publication.id);
-      setTimeout(() => setCopiedId((current) => (current === publication.id ? null : current)), 2000);
+      await navigator.clipboard.writeText(`${SITE_URL}/essays/${essay.slug}`);
+      setCopiedId(essay.id);
+      setTimeout(() => setCopiedId((current) => (current === essay.id ? null : current)), 2000);
     } catch {
       setListError("Unable to copy the link. Please copy it manually.");
     }
@@ -300,15 +276,15 @@ export function PublicationsSection({ initialPublications }: PublicationsSection
     setListError("");
 
     try {
-      const response = await fetch(`/api/sanctum/publications/${id}`, { method: "DELETE" });
+      const response = await fetch(`/api/sanctum/essays/${id}`, { method: "DELETE" });
       const data = await response.json();
 
       if (!response.ok || !data.success) {
-        setListError(data.error || "Unable to delete the publication.");
+        setListError(data.error || "Unable to delete the essay.");
         return;
       }
 
-      setPublications((prev) => prev.filter((item) => item.id !== id));
+      setEssays((prev) => prev.filter((item) => item.id !== id));
       setConfirmDeleteId(null);
     } catch {
       setListError("Something went wrong. Please check your connection.");
@@ -320,11 +296,9 @@ export function PublicationsSection({ initialPublications }: PublicationsSection
   return (
     <section className="mt-12">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <h2 className="font-display text-xl font-semibold text-ivory md:text-2xl">
-          Publications
-        </h2>
+        <h2 className="font-display text-xl font-semibold text-ivory md:text-2xl">Essays</h2>
         <Button type="button" variant="secondary" onClick={openCreateModal}>
-          New Publication
+          New Essay
         </Button>
       </div>
 
@@ -345,9 +319,6 @@ export function PublicationsSection({ initialPublications }: PublicationsSection
                 Title
               </th>
               <th className="px-4 py-3 font-body text-xs font-medium uppercase tracking-wider text-ivory-muted">
-                Category
-              </th>
-              <th className="px-4 py-3 font-body text-xs font-medium uppercase tracking-wider text-ivory-muted">
                 Status
               </th>
               <th className="px-4 py-3 font-body text-xs font-medium uppercase tracking-wider text-ivory-muted">
@@ -359,42 +330,39 @@ export function PublicationsSection({ initialPublications }: PublicationsSection
             </tr>
           </thead>
           <tbody>
-            {publications.map((publication) => (
-              <tr key={publication.id} className="border-b border-gold-muted/20 last:border-0">
+            {essays.map((essay) => (
+              <tr key={essay.id} className="border-b border-gold-muted/20 last:border-0">
                 <td className="px-4 py-3">
-                  {publication.coverPreviewUrl ? (
+                  {essay.coverPreviewUrl ? (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img
-                      src={publication.coverPreviewUrl}
-                      alt={publication.title}
+                      src={essay.coverPreviewUrl}
+                      alt={essay.title}
                       className="h-14 w-11 border border-gold-muted object-cover"
                     />
                   ) : (
                     <div className="h-14 w-11 border border-gold-muted bg-navy" />
                   )}
                 </td>
-                <td className="px-4 py-3 font-body text-sm text-ivory">{publication.title}</td>
-                <td className="px-4 py-3 font-body text-sm text-ivory-muted">
-                  {publication.category}
-                </td>
+                <td className="px-4 py-3 font-body text-sm text-ivory">{essay.title}</td>
                 <td className="px-4 py-3">
                   <span
                     className={`inline-block border px-2 py-1 font-body text-xs font-medium uppercase tracking-wide ${
-                      publication.status === "published"
+                      essay.status === "published"
                         ? "border-emerald/40 text-emerald"
                         : "border-gold-muted text-gold"
                     }`}
                   >
-                    {publication.status === "published" ? "Published" : "Draft"}
+                    {essay.status === "published" ? "Published" : "Draft"}
                   </span>
                 </td>
                 <td className="px-4 py-3 font-body text-sm text-ivory-muted">
-                  {formatDate(publication.created_at)}
+                  {formatDate(essay.created_at)}
                 </td>
                 <td className="px-4 py-3">
                   <div className="flex flex-wrap gap-3">
                     <a
-                      href={`/library/${publication.slug}`}
+                      href={`/essays/${essay.slug}`}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="font-body text-sm font-medium text-gold transition-colors duration-200 hover:text-ivory"
@@ -403,33 +371,33 @@ export function PublicationsSection({ initialPublications }: PublicationsSection
                     </a>
                     <button
                       type="button"
-                      onClick={() => handleCopyLink(publication)}
+                      onClick={() => handleCopyLink(essay)}
                       className="font-body text-sm font-medium text-ivory-muted transition-colors duration-200 hover:text-gold"
                     >
-                      {copiedId === publication.id ? "Copied!" : "Copy Link"}
+                      {copiedId === essay.id ? "Copied!" : "Copy Link"}
                     </button>
                     <button
                       type="button"
-                      onClick={() => openEditModal(publication)}
+                      onClick={() => openEditModal(essay)}
                       className="font-body text-sm font-medium text-gold transition-colors duration-200 hover:text-ivory"
                     >
                       Edit
                     </button>
                     <button
                       type="button"
-                      disabled={togglingId === publication.id}
-                      onClick={() => handleToggleStatus(publication)}
+                      disabled={togglingId === essay.id}
+                      onClick={() => handleToggleStatus(essay)}
                       className="font-body text-sm font-medium text-ivory-muted transition-colors duration-200 hover:text-gold disabled:opacity-50"
                     >
-                      {togglingId === publication.id
+                      {togglingId === essay.id
                         ? "Updating…"
-                        : publication.status === "published"
+                        : essay.status === "published"
                           ? "Unpublish"
                           : "Publish"}
                     </button>
                     <button
                       type="button"
-                      onClick={() => setConfirmDeleteId(publication.id)}
+                      onClick={() => setConfirmDeleteId(essay.id)}
                       className="font-body text-sm font-medium text-crimson transition-colors duration-200 hover:text-ivory"
                     >
                       Delete
@@ -438,10 +406,10 @@ export function PublicationsSection({ initialPublications }: PublicationsSection
                 </td>
               </tr>
             ))}
-            {publications.length === 0 && (
+            {essays.length === 0 && (
               <tr>
-                <td colSpan={6} className="px-4 py-8 text-center font-body text-sm text-ivory-muted">
-                  No publications yet.
+                <td colSpan={5} className="px-4 py-8 text-center font-body text-sm text-ivory-muted">
+                  No essays yet.
                 </td>
               </tr>
             )}
@@ -457,16 +425,13 @@ export function PublicationsSection({ initialPublications }: PublicationsSection
           <div
             role="dialog"
             aria-modal="true"
-            aria-labelledby="publication-form-heading"
+            aria-labelledby="essay-form-heading"
             className="max-h-[90vh] w-full max-w-2xl overflow-y-auto border border-gold-muted bg-charcoal p-6 md:p-8"
             onClick={(event) => event.stopPropagation()}
           >
             <div className="flex items-start justify-between gap-4">
-              <h2
-                id="publication-form-heading"
-                className="font-display text-2xl font-semibold text-ivory"
-              >
-                {modalMode === "create" ? "New Publication" : "Edit Publication"}
+              <h2 id="essay-form-heading" className="font-display text-2xl font-semibold text-ivory">
+                {modalMode === "create" ? "New Essay" : "Edit Essay"}
               </h2>
               <button
                 type="button"
@@ -480,11 +445,11 @@ export function PublicationsSection({ initialPublications }: PublicationsSection
 
             <form onSubmit={handleSubmit} className="mt-8 space-y-5">
               <div>
-                <label htmlFor="pub-title" className="font-body text-xs font-medium uppercase tracking-wider text-gold">
+                <label htmlFor="essay-title" className="font-body text-xs font-medium uppercase tracking-wider text-gold">
                   Title
                 </label>
                 <input
-                  id="pub-title"
+                  id="essay-title"
                   required
                   value={form.title}
                   onChange={(event) => handleTitleChange(event.target.value)}
@@ -493,11 +458,11 @@ export function PublicationsSection({ initialPublications }: PublicationsSection
               </div>
 
               <div>
-                <label htmlFor="pub-slug" className="font-body text-xs font-medium uppercase tracking-wider text-gold">
+                <label htmlFor="essay-slug" className="font-body text-xs font-medium uppercase tracking-wider text-gold">
                   Slug
                 </label>
                 <input
-                  id="pub-slug"
+                  id="essay-slug"
                   required
                   value={form.slug}
                   onChange={(event) => {
@@ -509,38 +474,25 @@ export function PublicationsSection({ initialPublications }: PublicationsSection
               </div>
 
               <div>
-                <label htmlFor="pub-category" className="font-body text-xs font-medium uppercase tracking-wider text-gold">
-                  Category
-                </label>
-                <input
-                  id="pub-category"
-                  required
-                  value={form.category}
-                  onChange={(event) => setForm((prev) => ({ ...prev, category: event.target.value }))}
-                  className="mt-2 h-11 w-full border border-gold-muted bg-transparent px-3 font-body text-sm text-ivory focus:border-gold focus:outline-none"
-                />
-              </div>
-
-              <div>
-                <label htmlFor="pub-description" className="font-body text-xs font-medium uppercase tracking-wider text-gold">
-                  Description
+                <label htmlFor="essay-excerpt" className="font-body text-xs font-medium uppercase tracking-wider text-gold">
+                  Excerpt
                 </label>
                 <textarea
-                  id="pub-description"
+                  id="essay-excerpt"
                   required
-                  rows={4}
-                  value={form.description}
-                  onChange={(event) => setForm((prev) => ({ ...prev, description: event.target.value }))}
+                  rows={2}
+                  value={form.excerpt}
+                  onChange={(event) => setForm((prev) => ({ ...prev, excerpt: event.target.value }))}
                   className="mt-2 w-full border border-gold-muted bg-transparent px-3 py-2 font-body text-sm text-ivory focus:border-gold focus:outline-none"
                 />
               </div>
 
               <div>
-                <label htmlFor="pub-cover" className="font-body text-xs font-medium uppercase tracking-wider text-gold">
-                  Cover Image{modalMode === "edit" ? " (leave empty to keep current cover)" : ""}
+                <label htmlFor="essay-cover" className="font-body text-xs font-medium uppercase tracking-wider text-gold">
+                  Cover Image (optional){modalMode === "edit" ? " — leave empty to keep current cover" : ""}
                 </label>
                 <input
-                  id="pub-cover"
+                  id="essay-cover"
                   type="file"
                   accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp"
                   onChange={(event) => handleCoverChange(event.target.files?.[0] ?? null)}
@@ -550,34 +502,40 @@ export function PublicationsSection({ initialPublications }: PublicationsSection
                   <p className="mt-2 font-body text-xs text-ivory-muted">Preparing cover image…</p>
                 )}
                 {modalMode === "edit" && editingId && (
-                  <PreviewLink
-                    publications={publications}
-                    editingId={editingId}
-                    field="coverPreviewUrl"
-                    label="View current cover"
-                  />
+                  <CoverPreviewLink essays={essays} editingId={editingId} />
                 )}
               </div>
 
               <div>
-                <label htmlFor="pub-pdf" className="font-body text-xs font-medium uppercase tracking-wider text-gold">
-                  PDF File{modalMode === "edit" ? " (leave empty to keep current file)" : ""}
+                <label htmlFor="essay-content" className="font-body text-xs font-medium uppercase tracking-wider text-gold">
+                  Essay Body (Markdown — # heading, ## section, **bold**, *italic*, &gt; quote, - list)
+                </label>
+                <textarea
+                  id="essay-content"
+                  required
+                  rows={14}
+                  value={form.content}
+                  onChange={(event) => setForm((prev) => ({ ...prev, content: event.target.value }))}
+                  className="mt-2 w-full border border-gold-muted bg-transparent px-3 py-2 font-mono text-sm text-ivory focus:border-gold focus:outline-none"
+                />
+              </div>
+
+              <div>
+                <label htmlFor="essay-linkedin" className="font-body text-xs font-medium uppercase tracking-wider text-gold">
+                  LinkedIn URL (optional)
                 </label>
                 <input
-                  id="pub-pdf"
-                  type="file"
-                  accept="application/pdf"
-                  onChange={(event) => setPdfFile(event.target.files?.[0] ?? null)}
-                  className="mt-2 w-full font-body text-sm text-ivory-muted file:mr-4 file:border file:border-gold-muted file:bg-transparent file:px-3 file:py-2 file:font-body file:text-sm file:text-gold"
+                  id="essay-linkedin"
+                  type="url"
+                  value={form.linkedinUrl}
+                  onChange={(event) => setForm((prev) => ({ ...prev, linkedinUrl: event.target.value }))}
+                  placeholder="https://www.linkedin.com/…"
+                  className="mt-2 h-11 w-full border border-gold-muted bg-transparent px-3 font-body text-sm text-ivory placeholder:text-ivory-muted focus:border-gold focus:outline-none"
                 />
-                {modalMode === "edit" && editingId && (
-                  <PreviewLink
-                    publications={publications}
-                    editingId={editingId}
-                    field="pdfPreviewUrl"
-                    label="View current PDF"
-                  />
-                )}
+                <p className="mt-2 font-body text-xs text-ivory-muted">
+                  Paste the LinkedIn post URL after you publish it manually — the public essay page
+                  will then show &quot;Continue discussion on LinkedIn ↗&quot;.
+                </p>
               </div>
 
               <div>
@@ -610,7 +568,7 @@ export function PublicationsSection({ initialPublications }: PublicationsSection
 
               <div className="flex gap-3 border-t border-gold-muted/30 pt-6">
                 <Button type="submit" variant="primary" disabled={submitting || convertingCover}>
-                  {submitting ? "Saving…" : "Save Publication"}
+                  {submitting ? "Saving…" : "Save Essay"}
                 </Button>
                 <Button type="button" variant="ghost" onClick={closeModal}>
                   Cancel
@@ -623,7 +581,7 @@ export function PublicationsSection({ initialPublications }: PublicationsSection
 
       {confirmDeleteId && (
         <DeleteConfirmModal
-          message="Delete this publication permanently?"
+          message="Delete this essay permanently?"
           deleting={deletingId === confirmDeleteId}
           onCancel={() => setConfirmDeleteId(null)}
           onConfirm={() => handleDelete(confirmDeleteId)}
@@ -633,30 +591,25 @@ export function PublicationsSection({ initialPublications }: PublicationsSection
   );
 }
 
-function PreviewLink({
-  publications,
+function CoverPreviewLink({
+  essays,
   editingId,
-  field,
-  label,
 }: {
-  publications: PublicationWithPreview[];
+  essays: EssayWithPreview[];
   editingId: string;
-  field: "pdfPreviewUrl" | "coverPreviewUrl";
-  label: string;
 }) {
-  const publication = publications.find((item) => item.id === editingId);
-  const url = publication?.[field];
+  const essay = essays.find((item) => item.id === editingId);
 
-  if (!url) return null;
+  if (!essay?.coverPreviewUrl) return null;
 
   return (
     <a
-      href={url}
+      href={essay.coverPreviewUrl}
       target="_blank"
       rel="noopener noreferrer"
       className="mt-2 inline-block font-body text-sm font-medium text-gold transition-colors duration-200 hover:text-ivory"
     >
-      {label} ↗
+      View current cover ↗
     </a>
   );
 }

@@ -5,7 +5,9 @@ import { Section } from "@/components/layout/Section";
 import { Card } from "@/components/ui/Card";
 import { Divider } from "@/components/ui/Divider";
 import { Eyebrow } from "@/components/ui/Eyebrow";
-import { essays } from "@/lib/content/essays";
+import { essays as staticEssays } from "@/lib/content/essays";
+import { supabaseSelect } from "@/lib/supabase";
+import type { Essay as HostedEssay } from "@/lib/sanctum/types";
 
 export const metadata: Metadata = {
   title: "Essays — Aristolegion",
@@ -23,6 +25,16 @@ export const metadata: Metadata = {
   },
 };
 
+export const dynamic = "force-dynamic";
+
+interface EssayCardItem {
+  slug: string;
+  title: string;
+  category: string;
+  excerpt: string;
+  sortDate: string;
+}
+
 function formatDate(iso: string) {
   return new Date(iso).toLocaleDateString("en-US", {
     year: "numeric",
@@ -31,8 +43,47 @@ function formatDate(iso: string) {
   });
 }
 
-export default function EssaysPage() {
-  const [featured, ...rest] = essays;
+export default async function EssaysPage() {
+  let hostedItems: EssayCardItem[] = [];
+
+  try {
+    const hostedResult = await supabaseSelect<HostedEssay>("essays", {
+      order: "published_at.desc",
+      filter: { status: "eq.published" },
+    });
+
+    if (hostedResult.ok) {
+      hostedItems = hostedResult.data.map((essay) => ({
+        slug: essay.slug,
+        title: essay.title,
+        category: "Essay",
+        excerpt: essay.excerpt,
+        sortDate: essay.published_at ?? essay.created_at,
+      }));
+    } else {
+      console.error("ESSAY CMS ERROR:", {
+        source: "fetch",
+        status: hostedResult.status,
+        message: hostedResult.message,
+      });
+    }
+  } catch (error) {
+    console.error("ESSAY CMS ERROR:", { source: "fetch", error });
+  }
+
+  const staticItems: EssayCardItem[] = staticEssays.map((essay) => ({
+    slug: essay.slug,
+    title: essay.title,
+    category: essay.category,
+    excerpt: essay.excerpt,
+    sortDate: essay.publishDate,
+  }));
+
+  const items = [...hostedItems, ...staticItems].sort(
+    (a, b) => new Date(b.sortDate).getTime() - new Date(a.sortDate).getTime()
+  );
+
+  const [featured, ...rest] = items;
 
   return (
     <PageShell>
@@ -53,53 +104,51 @@ export default function EssaysPage() {
         </Container>
       </Section>
 
-      <Section background="ivory">
-        <Container>
-          <Card
-            href={`/essays/${featured.slug}`}
-            tone="ivory"
-            className="p-8 md:p-12"
-          >
-            <Eyebrow className="mb-3">{featured.category} · Featured</Eyebrow>
-            <h2 className="font-display text-balance text-2xl font-semibold text-charcoal md:text-4xl">
-              {featured.title}
-            </h2>
-            <p className="mt-4 max-w-2xl font-body text-base leading-relaxed text-charcoal/70">
-              {featured.excerpt}
-            </p>
-            <p className="mt-6 font-body text-sm uppercase tracking-[0.1em] text-charcoal/50">
-              {formatDate(featured.publishDate)} · {featured.readingTime}
-            </p>
-            <span className="mt-6 inline-block font-body text-sm font-medium text-gold transition-colors duration-200 group-hover:text-navy">
-              Read More →
-            </span>
-          </Card>
+      {featured && (
+        <Section background="ivory">
+          <Container>
+            <Card href={`/essays/${featured.slug}`} tone="ivory" className="p-8 md:p-12">
+              <Eyebrow className="mb-3">{featured.category} · Featured</Eyebrow>
+              <h2 className="font-display text-balance text-2xl font-semibold text-charcoal md:text-4xl">
+                {featured.title}
+              </h2>
+              <p className="mt-4 max-w-2xl font-body text-base leading-relaxed text-charcoal/70">
+                {featured.excerpt}
+              </p>
+              <p className="mt-6 font-body text-sm uppercase tracking-[0.1em] text-charcoal/50">
+                {formatDate(featured.sortDate)}
+              </p>
+              <span className="mt-6 inline-block font-body text-sm font-medium text-gold transition-colors duration-200 group-hover:text-navy">
+                Read More →
+              </span>
+            </Card>
 
-          {rest.length > 0 && (
-            <ul className="mt-10 grid gap-8 md:grid-cols-2">
-              {rest.map((essay) => (
-                <li key={essay.slug}>
-                  <Card href={`/essays/${essay.slug}`} tone="ivory" className="p-6">
-                    <Eyebrow className="mb-2">{essay.category}</Eyebrow>
-                    <h3 className="font-display text-xl font-semibold text-charcoal">
-                      {essay.title}
-                    </h3>
-                    <p className="mt-3 font-body text-sm leading-relaxed text-charcoal/70">
-                      {essay.excerpt}
-                    </p>
-                    <p className="mt-4 font-body text-xs uppercase tracking-[0.1em] text-charcoal/50">
-                      {formatDate(essay.publishDate)} · {essay.readingTime}
-                    </p>
-                    <span className="mt-4 inline-block font-body text-sm font-medium text-gold transition-colors duration-200 group-hover:text-navy">
-                      Read More →
-                    </span>
-                  </Card>
-                </li>
-              ))}
-            </ul>
-          )}
-        </Container>
-      </Section>
+            {rest.length > 0 && (
+              <ul className="mt-10 grid gap-8 md:grid-cols-2">
+                {rest.map((essay) => (
+                  <li key={essay.slug}>
+                    <Card href={`/essays/${essay.slug}`} tone="ivory" className="p-6">
+                      <Eyebrow className="mb-2">{essay.category}</Eyebrow>
+                      <h3 className="font-display text-xl font-semibold text-charcoal">
+                        {essay.title}
+                      </h3>
+                      <p className="mt-3 font-body text-sm leading-relaxed text-charcoal/70">
+                        {essay.excerpt}
+                      </p>
+                      <p className="mt-4 font-body text-xs uppercase tracking-[0.1em] text-charcoal/50">
+                        {formatDate(essay.sortDate)}
+                      </p>
+                      <span className="mt-4 inline-block font-body text-sm font-medium text-gold transition-colors duration-200 group-hover:text-navy">
+                        Read More →
+                      </span>
+                    </Card>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </Container>
+        </Section>
+      )}
     </PageShell>
   );
 }
