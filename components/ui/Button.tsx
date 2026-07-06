@@ -11,6 +11,7 @@ interface ButtonProps {
   className?: string;
   external?: boolean;
   disabled?: boolean;
+  onClick?: ButtonHTMLAttributes<HTMLButtonElement>["onClick"];
 }
 
 const variantClasses: Record<ButtonVariant, string> = {
@@ -30,6 +31,7 @@ export function Button({
   className = "",
   external = false,
   disabled = false,
+  onClick,
 }: ButtonProps) {
   const classes = `${variantClasses[variant]} ${
     disabled ? "cursor-not-allowed opacity-50" : ""
@@ -57,7 +59,7 @@ export function Button({
   }
 
   return (
-    <button type={type} disabled={disabled} className={classes}>
+    <button type={type} disabled={disabled} className={classes} onClick={onClick}>
       {children}
     </button>
   );

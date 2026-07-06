@@ -5,37 +5,110 @@ type SupabaseInsertResult =
   | { ok: true }
   | { ok: false; status: number; message: string };
 
+type SupabaseSelectResult<T> =
+  | { ok: true; data: T[] }
+  | { ok: false; status: number; message: string };
+
+type SupabaseUpdateResult =
+  | { ok: true }
+  | { ok: false; status: number; message: string };
+
 /**
- * Server-only Supabase insert helper, using plain fetch against Supabase's
- * PostgREST API — avoids pulling in the @supabase/supabase-js SDK for a
- * single insert-only need.
+ * Server-only Supabase helpers, using plain fetch against Supabase's
+ * PostgREST API — avoids pulling in the @supabase/supabase-js SDK.
  *
  * Uses the service role key, which bypasses Row Level Security, so this
- * module must only ever be imported from Route Handlers or other
- * server-only code — never from a "use client" component. Because
+ * module must only ever be imported from Route Handlers, Server Components,
+ * or other server-only code — never from a "use client" component. Because
  * SUPABASE_SERVICE_ROLE_KEY has no NEXT_PUBLIC_ prefix, Next.js never
  * inlines it into client bundles, but callers must also take care never to
  * echo it back in a response body.
  */
-export async function supabaseInsert(
-  table: string,
-  row: Record<string, unknown>
-): Promise<SupabaseInsertResult> {
+function requireConfig(): { url: string; key: string } {
   if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
     throw new Error(
       "Supabase is not configured: set NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY."
     );
   }
+  return { url: SUPABASE_URL, key: SUPABASE_SERVICE_ROLE_KEY };
+}
 
-  const response = await fetch(`${SUPABASE_URL}/rest/v1/${table}`, {
+export async function supabaseInsert(
+  table: string,
+  row: Record<string, unknown>
+): Promise<SupabaseInsertResult> {
+  const { url, key } = requireConfig();
+
+  const response = await fetch(`${url}/rest/v1/${table}`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      apikey: SUPABASE_SERVICE_ROLE_KEY,
-      Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
+      apikey: key,
+      Authorization: `Bearer ${key}`,
       Prefer: "return=minimal",
     },
     body: JSON.stringify(row),
+    cache: "no-store",
+  });
+
+  if (!response.ok) {
+    const message = await response.text().catch(() => "");
+    return { ok: false, status: response.status, message };
+  }
+
+  return { ok: true };
+}
+
+export async function supabaseSelect<T = Record<string, unknown>>(
+  table: string,
+  options: { order?: string } = {}
+): Promise<SupabaseSelectResult<T>> {
+  const { url, key } = requireConfig();
+
+  const params = new URLSearchParams({ select: "*" });
+  if (options.order) {
+    params.set("order", options.order);
+  }
+
+  const response = await fetch(`${url}/rest/v1/${table}?${params.toString()}`, {
+    method: "GET",
+    headers: {
+      apikey: key,
+      Authorization: `Bearer ${key}`,
+    },
+    cache: "no-store",
+  });
+
+  if (!response.ok) {
+    const message = await response.text().catch(() => "");
+    return { ok: false, status: response.status, message };
+  }
+
+  const data = (await response.json()) as T[];
+  return { ok: true, data };
+}
+
+export async function supabaseUpdate(
+  table: string,
+  match: Record<string, string>,
+  patch: Record<string, unknown>
+): Promise<SupabaseUpdateResult> {
+  const { url, key } = requireConfig();
+
+  const params = new URLSearchParams();
+  for (const [column, value] of Object.entries(match)) {
+    params.set(column, `eq.${value}`);
+  }
+
+  const response = await fetch(`${url}/rest/v1/${table}?${params.toString()}`, {
+    method: "PATCH",
+    headers: {
+      "Content-Type": "application/json",
+      apikey: key,
+      Authorization: `Bearer ${key}`,
+      Prefer: "return=minimal",
+    },
+    body: JSON.stringify(patch),
     cache: "no-store",
   });
 

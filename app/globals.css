@@ -12,6 +12,8 @@
   --color-ivory-muted: #a9b4c2;
   /* Crimson: Error State per PRD Color System */
   --color-crimson: #e74c3c;
+  /* Emerald: Success State per PRD Color System */
+  --color-emerald: #2ecc71;
 
   /* Semantic aliases */
   --background: var(--color-ivory);
@@ -26,6 +28,7 @@
   --color-charcoal: var(--color-charcoal);
   --color-ivory-muted: var(--color-ivory-muted);
   --color-crimson: var(--color-crimson);
+  --color-emerald: var(--color-emerald);
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --font-sans: var(--font-inter);
