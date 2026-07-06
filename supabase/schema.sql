@@ -24,6 +24,14 @@ alter table inner_circle_applications enable row level security;
 -- lockdown: even a leaked anon key could not read, insert, update, or
 -- delete rows directly against Supabase. All access must go through our
 -- own server-side validation in the API routes above.
+--
+-- RLS bypass and table-level GRANTs are separate Postgres privilege layers.
+-- This table originally had SELECT/INSERT for service_role but was missing
+-- UPDATE/DELETE, which silently broke the Sanctum Pending/Accepted/Rejected
+-- status buttons (app/api/sanctum/applications/[id]/route.ts) — every PATCH
+-- failed with a permission-denied error. Fixed by granting the missing
+-- privileges explicitly; see publications below for the same class of bug.
+grant update, delete on public.inner_circle_applications to service_role;
 
 create table if not exists newsletter_subscribers (
   id uuid primary key default gen_random_uuid(),
@@ -65,13 +73,11 @@ alter table publications enable row level security;
 --
 -- service_role bypasses RLS, but RLS bypass and table-level GRANTs are
 -- separate Postgres privilege layers — bypassing RLS does not imply SELECT/
--- INSERT/UPDATE/DELETE privileges exist. inner_circle_applications and
--- newsletter_subscribers had these grants from whatever process originally
--- provisioned them; a table created purely via `create table` (as this one
--- was) does not automatically inherit them. Without this grant, every
--- PostgREST request against this table fails with a permission-denied
--- error — which is exactly what caused the Sanctum "Unable to load some
--- dashboard data" warning until this grant was added.
+-- INSERT/UPDATE/DELETE privileges exist. This table was missing all four
+-- (see the same issue on inner_circle_applications above). Without this
+-- grant, every PostgREST request against this table fails with a
+-- permission-denied error — which is exactly what caused the Sanctum
+-- "Unable to load some dashboard data" warning until this grant was added.
 grant all on public.publications to service_role;
 
 -- Storage: a private "publications" bucket holds PDFs and cover images
