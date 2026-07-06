@@ -264,3 +264,29 @@ export async function supabaseCreateSignedUrl(
   const data = (await response.json()) as { signedURL: string };
   return { ok: true, url: `${url}/storage/v1${data.signedURL}` };
 }
+
+export async function supabaseMoveFile(
+  bucket: string,
+  fromPath: string,
+  toPath: string
+): Promise<SupabaseStorageResult> {
+  const { url, key } = requireConfig();
+
+  const response = await fetch(`${url}/storage/v1/object/move`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      apikey: key,
+      Authorization: `Bearer ${key}`,
+    },
+    body: JSON.stringify({ bucketId: bucket, sourceKey: fromPath, destinationKey: toPath }),
+    cache: "no-store",
+  });
+
+  if (!response.ok) {
+    const message = await response.text().catch(() => "");
+    return { ok: false, status: response.status, message };
+  }
+
+  return { ok: true };
+}

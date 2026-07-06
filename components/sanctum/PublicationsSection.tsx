@@ -13,7 +13,6 @@ interface FormState {
   slug: string;
   category: string;
   description: string;
-  coverImageUrl: string;
   status: "draft" | "published";
 }
 
@@ -22,7 +21,6 @@ const EMPTY_FORM: FormState = {
   slug: "",
   category: "",
   description: "",
-  coverImageUrl: "",
   status: "draft",
 };
 
@@ -43,16 +41,62 @@ function formatDate(iso: string | null): string {
   });
 }
 
-function buildFormData(form: FormState, pdfFile: File | null): FormData {
+// Normalizes every uploaded cover to .webp client-side via canvas, so the
+// stored file matches the "publication-slug-cover.webp" storage convention
+// without needing a server-side image-processing dependency.
+function convertImageToWebp(file: File, quality = 0.85): Promise<File> {
+  return new Promise((resolve) => {
+    const img = new Image();
+    const objectUrl = URL.createObjectURL(file);
+
+    img.onload = () => {
+      URL.revokeObjectURL(objectUrl);
+      const canvas = document.createElement("canvas");
+      canvas.width = img.naturalWidth;
+      canvas.height = img.naturalHeight;
+      const ctx = canvas.getContext("2d");
+
+      if (!ctx) {
+        resolve(file);
+        return;
+      }
+
+      ctx.drawImage(img, 0, 0);
+      canvas.toBlob(
+        (blob) => {
+          if (!blob) {
+            resolve(file);
+            return;
+          }
+          const webpName = file.name.replace(/\.[^.]+$/, "") + ".webp";
+          resolve(new File([blob], webpName, { type: "image/webp" }));
+        },
+        "image/webp",
+        quality
+      );
+    };
+
+    img.onerror = () => {
+      URL.revokeObjectURL(objectUrl);
+      resolve(file);
+    };
+
+    img.src = objectUrl;
+  });
+}
+
+function buildFormData(form: FormState, pdfFile: File | null, coverFile: File | null): FormData {
   const formData = new FormData();
   formData.set("title", form.title);
   formData.set("slug", form.slug);
   formData.set("category", form.category);
   formData.set("description", form.description);
-  formData.set("coverImageUrl", form.coverImageUrl);
   formData.set("status", form.status);
   if (pdfFile) {
     formData.set("pdf", pdfFile);
+  }
+  if (coverFile) {
+    formData.set("cover", coverFile);
   }
   return formData;
 }
@@ -63,6 +107,8 @@ export function PublicationsSection({ initialPublications }: PublicationsSection
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState<FormState>(EMPTY_FORM);
   const [pdfFile, setPdfFile] = useState<File | null>(null);
+  const [coverFile, setCoverFile] = useState<File | null>(null);
+  const [convertingCover, setConvertingCover] = useState(false);
   const [slugTouched, setSlugTouched] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [formError, setFormError] = useState("");
@@ -85,6 +131,7 @@ export function PublicationsSection({ initialPublications }: PublicationsSection
   function openCreateModal() {
     setForm(EMPTY_FORM);
     setPdfFile(null);
+    setCoverFile(null);
     setSlugTouched(false);
     setFormError("");
     setEditingId(null);
@@ -97,10 +144,10 @@ export function PublicationsSection({ initialPublications }: PublicationsSection
       slug: publication.slug,
       category: publication.category,
       description: publication.description,
-      coverImageUrl: publication.cover_image_url ?? "",
       status: publication.status === "published" ? "published" : "draft",
     });
     setPdfFile(null);
+    setCoverFile(null);
     setSlugTouched(true);
     setFormError("");
     setEditingId(publication.id);
@@ -120,6 +167,21 @@ export function PublicationsSection({ initialPublications }: PublicationsSection
     }));
   }
 
+  async function handleCoverChange(file: File | null) {
+    if (!file) {
+      setCoverFile(null);
+      return;
+    }
+
+    setConvertingCover(true);
+    try {
+      const webpFile = await convertImageToWebp(file);
+      setCoverFile(webpFile);
+    } finally {
+      setConvertingCover(false);
+    }
+  }
+
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setFormError("");
@@ -129,10 +191,15 @@ export function PublicationsSection({ initialPublications }: PublicationsSection
       return;
     }
 
+    if (modalMode === "create" && !coverFile) {
+      setFormError("A cover image is required.");
+      return;
+    }
+
     setSubmitting(true);
 
     try {
-      const formData = buildFormData(form, pdfFile);
+      const formData = buildFormData(form, pdfFile, coverFile);
       const response =
         modalMode === "create"
           ? await fetch("/api/sanctum/publications", { method: "POST", body: formData })
@@ -148,13 +215,21 @@ export function PublicationsSection({ initialPublications }: PublicationsSection
         return;
       }
 
-      const saved: PublicationWithPreview = { ...data.publication, previewUrl: null };
+      const saved: PublicationWithPreview = {
+        ...data.publication,
+        pdfPreviewUrl: null,
+        coverPreviewUrl: null,
+      };
 
       setPublications((prev) => {
         if (modalMode === "create") {
           return [saved, ...prev];
         }
-        return prev.map((item) => (item.id === saved.id ? { ...saved, previewUrl: item.previewUrl } : item));
+        return prev.map((item) =>
+          item.id === saved.id
+            ? { ...saved, pdfPreviewUrl: item.pdfPreviewUrl, coverPreviewUrl: item.coverPreviewUrl }
+            : item
+        );
       });
 
       closeModal();
@@ -175,7 +250,6 @@ export function PublicationsSection({ initialPublications }: PublicationsSection
     formData.set("slug", publication.slug);
     formData.set("category", publication.category);
     formData.set("description", publication.description);
-    formData.set("coverImageUrl", publication.cover_image_url ?? "");
     formData.set("status", nextStatus);
 
     try {
@@ -193,7 +267,9 @@ export function PublicationsSection({ initialPublications }: PublicationsSection
 
       setPublications((prev) =>
         prev.map((item) =>
-          item.id === publication.id ? { ...data.publication, previewUrl: item.previewUrl } : item
+          item.id === publication.id
+            ? { ...data.publication, pdfPreviewUrl: item.pdfPreviewUrl, coverPreviewUrl: item.coverPreviewUrl }
+            : item
         )
       );
     } catch {
@@ -221,9 +297,12 @@ export function PublicationsSection({ initialPublications }: PublicationsSection
       )}
 
       <div className="mt-4 overflow-x-auto border border-gold-muted">
-        <table className="w-full min-w-[640px] text-left">
+        <table className="w-full min-w-[720px] text-left">
           <thead>
             <tr className="border-b border-gold-muted bg-charcoal">
+              <th className="px-4 py-3 font-body text-xs font-medium uppercase tracking-wider text-ivory-muted">
+                Cover
+              </th>
               <th className="px-4 py-3 font-body text-xs font-medium uppercase tracking-wider text-ivory-muted">
                 Title
               </th>
@@ -234,7 +313,7 @@ export function PublicationsSection({ initialPublications }: PublicationsSection
                 Status
               </th>
               <th className="px-4 py-3 font-body text-xs font-medium uppercase tracking-wider text-ivory-muted">
-                Published
+                Created
               </th>
               <th className="px-4 py-3 font-body text-xs font-medium uppercase tracking-wider text-ivory-muted">
                 Actions
@@ -244,6 +323,18 @@ export function PublicationsSection({ initialPublications }: PublicationsSection
           <tbody>
             {publications.map((publication) => (
               <tr key={publication.id} className="border-b border-gold-muted/20 last:border-0">
+                <td className="px-4 py-3">
+                  {publication.coverPreviewUrl ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={publication.coverPreviewUrl}
+                      alt={publication.title}
+                      className="h-14 w-11 border border-gold-muted object-cover"
+                    />
+                  ) : (
+                    <div className="h-14 w-11 border border-gold-muted bg-navy" />
+                  )}
+                </td>
                 <td className="px-4 py-3 font-body text-sm text-ivory">{publication.title}</td>
                 <td className="px-4 py-3 font-body text-sm text-ivory-muted">
                   {publication.category}
@@ -260,7 +351,7 @@ export function PublicationsSection({ initialPublications }: PublicationsSection
                   </span>
                 </td>
                 <td className="px-4 py-3 font-body text-sm text-ivory-muted">
-                  {formatDate(publication.published_at)}
+                  {formatDate(publication.created_at)}
                 </td>
                 <td className="px-4 py-3">
                   <div className="flex flex-wrap gap-3">
@@ -289,7 +380,7 @@ export function PublicationsSection({ initialPublications }: PublicationsSection
             ))}
             {publications.length === 0 && (
               <tr>
-                <td colSpan={5} className="px-4 py-8 text-center font-body text-sm text-ivory-muted">
+                <td colSpan={6} className="px-4 py-8 text-center font-body text-sm text-ivory-muted">
                   No publications yet.
                 </td>
               </tr>
@@ -386,15 +477,26 @@ export function PublicationsSection({ initialPublications }: PublicationsSection
 
               <div>
                 <label htmlFor="pub-cover" className="font-body text-xs font-medium uppercase tracking-wider text-gold">
-                  Cover Image URL (optional)
+                  Cover Image{modalMode === "edit" ? " (leave empty to keep current cover)" : ""}
                 </label>
                 <input
                   id="pub-cover"
-                  value={form.coverImageUrl}
-                  onChange={(event) => setForm((prev) => ({ ...prev, coverImageUrl: event.target.value }))}
-                  placeholder="https://…"
-                  className="mt-2 h-11 w-full border border-gold-muted bg-transparent px-3 font-body text-sm text-ivory placeholder:text-ivory-muted focus:border-gold focus:outline-none"
+                  type="file"
+                  accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp"
+                  onChange={(event) => handleCoverChange(event.target.files?.[0] ?? null)}
+                  className="mt-2 w-full font-body text-sm text-ivory-muted file:mr-4 file:border file:border-gold-muted file:bg-transparent file:px-3 file:py-2 file:font-body file:text-sm file:text-gold"
                 />
+                {convertingCover && (
+                  <p className="mt-2 font-body text-xs text-ivory-muted">Preparing cover image…</p>
+                )}
+                {modalMode === "edit" && editingId && (
+                  <PreviewLink
+                    publications={publications}
+                    editingId={editingId}
+                    field="coverPreviewUrl"
+                    label="View current cover"
+                  />
+                )}
               </div>
 
               <div>
@@ -409,7 +511,12 @@ export function PublicationsSection({ initialPublications }: PublicationsSection
                   className="mt-2 w-full font-body text-sm text-ivory-muted file:mr-4 file:border file:border-gold-muted file:bg-transparent file:px-3 file:py-2 file:font-body file:text-sm file:text-gold"
                 />
                 {modalMode === "edit" && editingId && (
-                  <PdfPreviewLink publications={publications} editingId={editingId} />
+                  <PreviewLink
+                    publications={publications}
+                    editingId={editingId}
+                    field="pdfPreviewUrl"
+                    label="View current PDF"
+                  />
                 )}
               </div>
 
@@ -442,7 +549,7 @@ export function PublicationsSection({ initialPublications }: PublicationsSection
               )}
 
               <div className="flex gap-3 border-t border-gold-muted/30 pt-6">
-                <Button type="submit" variant="primary" disabled={submitting}>
+                <Button type="submit" variant="primary" disabled={submitting || convertingCover}>
                   {submitting ? "Saving…" : "Save Publication"}
                 </Button>
                 <Button type="button" variant="ghost" onClick={closeModal}>
@@ -457,25 +564,30 @@ export function PublicationsSection({ initialPublications }: PublicationsSection
   );
 }
 
-function PdfPreviewLink({
+function PreviewLink({
   publications,
   editingId,
+  field,
+  label,
 }: {
   publications: PublicationWithPreview[];
   editingId: string;
+  field: "pdfPreviewUrl" | "coverPreviewUrl";
+  label: string;
 }) {
   const publication = publications.find((item) => item.id === editingId);
+  const url = publication?.[field];
 
-  if (!publication?.previewUrl) return null;
+  if (!url) return null;
 
   return (
     <a
-      href={publication.previewUrl}
+      href={url}
       target="_blank"
       rel="noopener noreferrer"
       className="mt-2 inline-block font-body text-sm font-medium text-gold transition-colors duration-200 hover:text-ivory"
     >
-      View current PDF ↗
+      {label} ↗
     </a>
   );
 }

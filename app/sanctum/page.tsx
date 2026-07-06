@@ -70,17 +70,20 @@ export default async function SanctumPage() {
     if (publicationsResult.ok) {
       publications = await Promise.all(
         publicationsResult.data.map(async (publication) => {
-          if (!publication.pdf_url) {
-            return { ...publication, previewUrl: null };
-          }
+          const [pdfSigned, coverSigned] = await Promise.all([
+            publication.pdf_url
+              ? supabaseCreateSignedUrl(PDF_BUCKET, publication.pdf_url, PREVIEW_URL_TTL_SECONDS)
+              : null,
+            publication.cover_image_url
+              ? supabaseCreateSignedUrl(PDF_BUCKET, publication.cover_image_url, PREVIEW_URL_TTL_SECONDS)
+              : null,
+          ]);
 
-          const signed = await supabaseCreateSignedUrl(
-            PDF_BUCKET,
-            publication.pdf_url,
-            PREVIEW_URL_TTL_SECONDS
-          );
-
-          return { ...publication, previewUrl: signed.ok ? signed.url : null };
+          return {
+            ...publication,
+            pdfPreviewUrl: pdfSigned?.ok ? pdfSigned.url : null,
+            coverPreviewUrl: coverSigned?.ok ? coverSigned.url : null,
+          };
         })
       );
     } else {

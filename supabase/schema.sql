@@ -63,11 +63,16 @@ alter table publications enable row level security;
 -- status = 'published' in the query itself — visitors never get a path to
 -- draft rows because no anon policy grants them a path to *any* rows.
 
--- Storage: a private "publications" bucket holds the PDF files. pdf_url
--- stores the object's storage path (e.g. "<publication-id>/document.pdf"),
--- not a public URL — the bucket has no public/anon access, so every read
--- (public library page, Sanctum preview) is served through a short-lived
--- signed URL generated server-side with the service role key.
+-- Storage: a private "publications" bucket holds PDFs and cover images
+-- under two subfolders, keyed by slug:
+--   pdfs/<slug>.pdf
+--   covers/<slug>-cover.<jpg|png|webp>
+-- pdf_url and cover_image_url store these storage paths, not public URLs —
+-- the bucket has no public/anon access, so every read (public library page,
+-- Sanctum preview/thumbnail) is served through a short-lived signed URL
+-- generated server-side with the service role key. Renaming a publication's
+-- slug moves the underlying objects to match (see supabaseMoveFile in
+-- lib/supabase.ts), so these paths stay in sync with the current slug.
 insert into storage.buckets (id, name, public)
 values ('publications', 'publications', false)
 on conflict (id) do nothing;

@@ -6,7 +6,7 @@ import { getPublication, publications } from "@/lib/content/library";
 import { supabaseCreateSignedUrl, supabaseSelect } from "@/lib/supabase";
 import type { Publication as HostedPublication } from "@/lib/sanctum/types";
 
-const PDF_BUCKET = "publications";
+const PUBLICATIONS_BUCKET = "publications";
 const VIEWER_URL_TTL_SECONDS = 60 * 60; // 1 hour, regenerated on every request
 
 export const dynamicParams = true;
@@ -100,7 +100,7 @@ export default async function PublicationPage({
 
   let signed: Awaited<ReturnType<typeof supabaseCreateSignedUrl>>;
   try {
-    signed = await supabaseCreateSignedUrl(PDF_BUCKET, hosted.pdf_url, VIEWER_URL_TTL_SECONDS);
+    signed = await supabaseCreateSignedUrl(PUBLICATIONS_BUCKET, hosted.pdf_url, VIEWER_URL_TTL_SECONDS);
   } catch (error) {
     console.error("LIBRARY PDF SIGN ERROR:", error);
     notFound();
@@ -114,11 +114,26 @@ export default async function PublicationPage({
     notFound();
   }
 
+  let coverUrl: string | null = null;
+  if (hosted.cover_image_url) {
+    try {
+      const signedCover = await supabaseCreateSignedUrl(
+        PUBLICATIONS_BUCKET,
+        hosted.cover_image_url,
+        VIEWER_URL_TTL_SECONDS
+      );
+      coverUrl = signedCover.ok ? signedCover.url : null;
+    } catch (error) {
+      console.error("LIBRARY COVER SIGN ERROR:", error);
+    }
+  }
+
   return (
     <HostedPublicationLayout
       publication={hosted}
       viewerUrl={signed.url}
       downloadUrl={`${signed.url}&download=${encodeURIComponent(hosted.slug)}.pdf`}
+      coverUrl={coverUrl}
     />
   );
 }

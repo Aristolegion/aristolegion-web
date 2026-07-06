@@ -36,5 +36,6 @@ export interface Publication {
 }
 
 export interface PublicationWithPreview extends Publication {
-  previewUrl: string | null;
+  pdfPreviewUrl: string | null;
+  coverPreviewUrl: string | null;
 }

@@ -1,19 +1,21 @@
 import { cookies } from "next/headers";
 import { SANCTUM_SESSION_COOKIE, isValidSessionToken } from "@/lib/sanctum/auth";
+import {
+  PUBLICATIONS_BUCKET,
+  buildCoverPath,
+  buildPdfPath,
+  getImageExtension,
+  isImageFile,
+  isPdfFile,
+} from "@/lib/sanctum/publicationStorage";
 import { supabaseInsertReturning, supabaseUploadFile } from "@/lib/supabase";
 import type { Publication, PublicationStatus } from "@/lib/sanctum/types";
 
 const VALID_STATUSES: PublicationStatus[] = ["draft", "published"];
 const SLUG_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
-const PDF_BUCKET = "publications";
 
 function isNonEmptyString(value: FormDataEntryValue | null): value is string {
   return typeof value === "string" && value.trim().length > 0;
-}
-
-function isPdfFile(value: FormDataEntryValue | null): value is File {
-  if (!(value instanceof File) || value.size === 0) return false;
-  return value.type === "application/pdf" || value.name.toLowerCase().endsWith(".pdf");
 }
 
 export async function POST(request: Request) {
@@ -35,9 +37,9 @@ export async function POST(request: Request) {
   const slug = formData.get("slug");
   const category = formData.get("category");
   const description = formData.get("description");
-  const coverImageUrl = formData.get("coverImageUrl");
   const status = formData.get("status");
   const pdf = formData.get("pdf");
+  const cover = formData.get("cover");
 
   if (
     !isNonEmptyString(title) ||
@@ -66,32 +68,44 @@ export async function POST(request: Request) {
     return Response.json({ success: false, error: "A PDF file is required." }, { status: 400 });
   }
 
-  const id = crypto.randomUUID();
-  const pdfPath = `${id}/document.pdf`;
+  if (!isImageFile(cover)) {
+    return Response.json(
+      { success: false, error: "A cover image (JPG, PNG, or WEBP) is required." },
+      { status: 400 }
+    );
+  }
+
+  const trimmedSlug = slug.trim();
+  const pdfPath = buildPdfPath(trimmedSlug);
+  const coverPath = buildCoverPath(trimmedSlug, getImageExtension(cover));
 
   try {
-    const uploadResult = await supabaseUploadFile(PDF_BUCKET, pdfPath, pdf, "application/pdf");
+    const [pdfUpload, coverUpload] = await Promise.all([
+      supabaseUploadFile(PUBLICATIONS_BUCKET, pdfPath, pdf, "application/pdf"),
+      supabaseUploadFile(PUBLICATIONS_BUCKET, coverPath, cover, cover.type || "image/webp"),
+    ]);
 
-    if (!uploadResult.ok) {
+    if (!pdfUpload.ok || !coverUpload.ok) {
       console.error("SANCTUM PUBLICATION UPLOAD ERROR:", {
-        status: uploadResult.status,
-        message: uploadResult.message,
+        pdf: pdfUpload.ok ? null : { status: pdfUpload.status, message: pdfUpload.message },
+        cover: coverUpload.ok ? null : { status: coverUpload.status, message: coverUpload.message },
       });
       return Response.json(
-        { success: false, error: "Unable to upload the PDF. Please try again." },
+        { success: false, error: "Unable to upload files. Please try again." },
         { status: 500 }
       );
     }
 
+    const id = crypto.randomUUID();
     const now = new Date().toISOString();
     const result = await supabaseInsertReturning<Publication>("publications", {
       id,
       title: title.trim(),
-      slug: slug.trim(),
+      slug: trimmedSlug,
       category: category.trim(),
       description: description.trim(),
       pdf_url: pdfPath,
-      cover_image_url: isNonEmptyString(coverImageUrl) ? coverImageUrl.trim() : null,
+      cover_image_url: coverPath,
       status,
       published_at: status === "published" ? now : null,
     });

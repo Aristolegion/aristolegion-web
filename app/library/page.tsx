@@ -8,8 +8,11 @@ import { Divider } from "@/components/ui/Divider";
 import { Eyebrow } from "@/components/ui/Eyebrow";
 import { SectionHeading } from "@/components/ui/SectionHeading";
 import { publications as staticPublications } from "@/lib/content/library";
-import { supabaseSelect } from "@/lib/supabase";
+import { supabaseCreateSignedUrl, supabaseSelect } from "@/lib/supabase";
 import type { Publication as HostedPublication } from "@/lib/sanctum/types";
+
+const PUBLICATIONS_BUCKET = "publications";
+const COVER_URL_TTL_SECONDS = 60 * 60; // 1 hour, regenerated on every request
 
 export const metadata: Metadata = {
   title: "Aristolegion Library | Intelligence Journals & Research",
@@ -49,15 +52,27 @@ export default async function LibraryPage() {
     });
 
     if (hostedResult.ok) {
-      hostedItems = hostedResult.data.map((publication) => ({
-        slug: publication.slug,
-        title: publication.title,
-        category: publication.category,
-        excerpt: publication.description,
-        coverImage: publication.cover_image_url,
-        sortDate: publication.published_at ?? publication.created_at,
-        isHosted: true,
-      }));
+      hostedItems = await Promise.all(
+        hostedResult.data.map(async (publication) => {
+          const coverUrl = publication.cover_image_url
+            ? await supabaseCreateSignedUrl(
+                PUBLICATIONS_BUCKET,
+                publication.cover_image_url,
+                COVER_URL_TTL_SECONDS
+              )
+            : null;
+
+          return {
+            slug: publication.slug,
+            title: publication.title,
+            category: publication.category,
+            excerpt: publication.description,
+            coverImage: coverUrl?.ok ? coverUrl.url : null,
+            sortDate: publication.published_at ?? publication.created_at,
+            isHosted: true,
+          };
+        })
+      );
     } else {
       console.error("LIBRARY PUBLICATIONS FETCH ERROR:", {
         status: hostedResult.status,

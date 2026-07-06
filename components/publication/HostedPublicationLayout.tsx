@@ -10,6 +10,7 @@ interface HostedPublicationLayoutProps {
   publication: Publication;
   viewerUrl: string;
   downloadUrl: string;
+  coverUrl: string | null;
 }
 
 function formatDate(iso: string | null): string | null {
@@ -25,6 +26,7 @@ export function HostedPublicationLayout({
   publication,
   viewerUrl,
   downloadUrl,
+  coverUrl,
 }: HostedPublicationLayoutProps) {
   const publishedLabel = formatDate(publication.published_at);
 
@@ -39,23 +41,43 @@ export function HostedPublicationLayout({
             ← Back to the Library
           </Link>
 
-          <div className="mx-auto mt-10 max-w-3xl">
-            <Eyebrow className="mb-4">{publication.category}</Eyebrow>
-            <h1 className="font-display text-balance text-4xl font-bold text-ivory md:text-5xl">
-              {publication.title}
-            </h1>
-            {publishedLabel && (
-              <p className="mt-6 font-body text-sm uppercase tracking-[0.1em] text-ivory-muted">
-                Published {publishedLabel}
+          <div className="mt-10 grid gap-12 md:grid-cols-2 md:items-center md:gap-16">
+            <div className="relative aspect-[3/4] overflow-hidden border border-gold-muted bg-charcoal md:order-2">
+              {coverUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={coverUrl}
+                  alt={publication.title}
+                  className="absolute inset-0 h-full w-full object-cover"
+                />
+              ) : (
+                <div className="absolute inset-0 flex items-center justify-center p-6 text-center">
+                  <Eyebrow>{publication.category}</Eyebrow>
+                </div>
+              )}
+            </div>
+
+            <div className="md:order-1">
+              <Eyebrow className="mb-4">{publication.category}</Eyebrow>
+              <h1 className="font-display text-balance text-4xl font-bold text-ivory md:text-5xl">
+                {publication.title}
+              </h1>
+              {publishedLabel && (
+                <p className="mt-6 font-body text-sm uppercase tracking-[0.1em] text-ivory-muted">
+                  Published {publishedLabel}
+                </p>
+              )}
+              <p className="mt-6 font-body text-lg leading-relaxed text-ivory-muted">
+                {publication.description}
               </p>
-            )}
-            <p className="mt-6 font-body text-lg leading-relaxed text-ivory-muted">
-              {publication.description}
-            </p>
-            <div className="mt-8">
-              <Button href={downloadUrl} external variant="primary">
-                Download PDF ↓
-              </Button>
+              <div className="mt-8 flex flex-wrap gap-4">
+                <Button href={viewerUrl} external variant="primary">
+                  Read ↗
+                </Button>
+                <Button href={downloadUrl} external variant="secondary">
+                  Download PDF ↓
+                </Button>
+              </div>
             </div>
           </div>
         </Container>
