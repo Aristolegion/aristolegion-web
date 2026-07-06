@@ -11,6 +11,7 @@ interface HostedPublicationLayoutProps {
   pdfPreviewUrl: string | null;
   pdfDownloadUrl: string | null;
   coverUrl: string | null;
+  isDraftPreview?: boolean;
 }
 
 const PREVIEW_UNAVAILABLE_MESSAGE = "Publication preview is temporarily unavailable.";
@@ -29,6 +30,7 @@ export function HostedPublicationLayout({
   pdfPreviewUrl,
   pdfDownloadUrl,
   coverUrl,
+  isDraftPreview = false,
 }: HostedPublicationLayoutProps) {
   const publishedLabel = formatDate(publication.published_at);
 
@@ -42,6 +44,12 @@ export function HostedPublicationLayout({
           >
             ← Back to the Library
           </Link>
+
+          {isDraftPreview && (
+            <p className="mx-auto mt-6 max-w-3xl border border-gold-muted bg-charcoal px-4 py-2 text-center font-body text-xs font-medium uppercase tracking-[0.1em] text-gold">
+              Draft Preview — visible only to Sanctum
+            </p>
+          )}
 
           <div className="mt-10 grid gap-12 md:grid-cols-2 md:items-center md:gap-16">
             <div className="relative aspect-[3/4] overflow-hidden border border-gold-muted bg-charcoal md:order-2">

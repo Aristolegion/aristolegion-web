@@ -1,8 +1,10 @@
 import type { Metadata } from "next";
+import { cookies } from "next/headers";
 import { notFound } from "next/navigation";
 import { HostedPublicationLayout } from "@/components/publication/HostedPublicationLayout";
 import { PublicationLayout } from "@/components/publication/PublicationLayout";
 import { getPublication, publications } from "@/lib/content/library";
+import { SANCTUM_SESSION_COOKIE, isValidSessionToken } from "@/lib/sanctum/auth";
 import { supabaseCreateSignedUrl, supabaseSelect } from "@/lib/supabase";
 import type { Publication as HostedPublication } from "@/lib/sanctum/types";
 
@@ -26,12 +28,22 @@ export function generateStaticParams() {
 
 interface PublicationPageProps {
   params: Promise<{ slug: string }>;
+  searchParams: Promise<{ preview?: string }>;
 }
 
-async function getHostedPublication(slug: string): Promise<HostedPublication | null> {
+async function hasSanctumSession(): Promise<boolean> {
+  const cookieStore = await cookies();
+  const token = cookieStore.get(SANCTUM_SESSION_COOKIE)?.value;
+  return isValidSessionToken(token);
+}
+
+// `allowDraft` is only ever true when both ?preview=true is present AND the
+// request carries a valid Sanctum session cookie — an unauthenticated
+// visitor hitting the same URL still only ever sees published publications.
+async function getHostedPublication(slug: string, allowDraft: boolean): Promise<HostedPublication | null> {
   try {
     const result = await supabaseSelect<HostedPublication>("publications", {
-      filter: { slug: `eq.${slug}`, status: "eq.published" },
+      filter: allowDraft ? { slug: `eq.${slug}` } : { slug: `eq.${slug}`, status: "eq.published" },
     });
 
     if (!result.ok || result.data.length === 0) {
@@ -53,8 +65,10 @@ function hasRequiredFields(
 
 export async function generateMetadata({
   params,
+  searchParams,
 }: PublicationPageProps): Promise<Metadata> {
   const { slug } = await params;
+  const { preview } = await searchParams;
   const publication = getPublication(slug);
 
   if (publication) {
@@ -76,15 +90,19 @@ export async function generateMetadata({
     };
   }
 
-  const hosted = await getHostedPublication(slug);
+  const allowDraft = preview === "true" && (await hasSanctumSession());
+  const hosted = await getHostedPublication(slug, allowDraft);
 
   if (!hosted) {
     return {};
   }
 
+  const isDraftPreview = allowDraft && hosted.status !== "published";
+
   return {
     title: `${hosted.title} — Aristolegion Library`,
     description: hosted.description,
+    ...(isDraftPreview ? { robots: { index: false, follow: false } } : {}),
     alternates: {
       canonical: `https://aristolegion.com/library/${hosted.slug}`,
     },
@@ -99,15 +117,18 @@ export async function generateMetadata({
 
 export default async function PublicationPage({
   params,
+  searchParams,
 }: PublicationPageProps) {
   const { slug } = await params;
+  const { preview } = await searchParams;
   const publication = getPublication(slug);
 
   if (publication) {
     return <PublicationLayout publication={publication} />;
   }
 
-  const hosted = await getHostedPublication(slug);
+  const allowDraft = preview === "true" && (await hasSanctumSession());
+  const hosted = await getHostedPublication(slug, allowDraft);
 
   if (!hosted) {
     notFound();
@@ -124,6 +145,8 @@ export default async function PublicationPage({
     });
     notFound();
   }
+
+  const isDraftPreview = allowDraft && hosted.status !== "published";
 
   let pdfPreviewUrl: string | null = null;
   let pdfDownloadUrl: string | null = null;
@@ -175,6 +198,7 @@ export default async function PublicationPage({
       pdfPreviewUrl={pdfPreviewUrl}
       pdfDownloadUrl={pdfDownloadUrl}
       coverUrl={coverUrl}
+      isDraftPreview={isDraftPreview}
     />
   );
 }

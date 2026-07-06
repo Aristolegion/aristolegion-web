@@ -394,7 +394,11 @@ export function PublicationsSection({ initialPublications }: PublicationsSection
                 <td className="px-4 py-3">
                   <div className="flex flex-wrap gap-3">
                     <a
-                      href={`/library/${publication.slug}`}
+                      href={
+                        publication.status === "published"
+                          ? `/library/${publication.slug}`
+                          : `/library/${publication.slug}?preview=true`
+                      }
                       target="_blank"
                       rel="noopener noreferrer"
                       className="font-body text-sm font-medium text-gold transition-colors duration-200 hover:text-ivory"
