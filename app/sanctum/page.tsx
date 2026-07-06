@@ -50,7 +50,8 @@ export default async function SanctumPage() {
     if (applicationsResult.ok) {
       applications = applicationsResult.data;
     } else {
-      console.error("SANCTUM APPLICATIONS FETCH ERROR:", {
+      console.error("SANCTUM LOAD ERROR:", {
+        source: "inner_circle_applications",
         status: applicationsResult.status,
         message: applicationsResult.message,
       });
@@ -60,7 +61,8 @@ export default async function SanctumPage() {
     if (subscribersResult.ok) {
       subscribers = subscribersResult.data;
     } else {
-      console.error("SANCTUM SUBSCRIBERS FETCH ERROR:", {
+      console.error("SANCTUM LOAD ERROR:", {
+        source: "newsletter_subscribers",
         status: subscribersResult.status,
         message: subscribersResult.message,
       });
@@ -79,6 +81,25 @@ export default async function SanctumPage() {
               : null,
           ]);
 
+          // A failed signed URL only drops that publication's preview/thumbnail —
+          // it must not surface as a dashboard-wide load error.
+          if (pdfSigned && !pdfSigned.ok) {
+            console.error("SANCTUM LOAD ERROR:", {
+              source: "publications.pdf_signed_url",
+              publicationId: publication.id,
+              status: pdfSigned.status,
+              message: pdfSigned.message,
+            });
+          }
+          if (coverSigned && !coverSigned.ok) {
+            console.error("SANCTUM LOAD ERROR:", {
+              source: "publications.cover_signed_url",
+              publicationId: publication.id,
+              status: coverSigned.status,
+              message: coverSigned.message,
+            });
+          }
+
           return {
             ...publication,
             pdfPreviewUrl: pdfSigned?.ok ? pdfSigned.url : null,
@@ -87,14 +108,15 @@ export default async function SanctumPage() {
         })
       );
     } else {
-      console.error("SANCTUM PUBLICATIONS FETCH ERROR:", {
+      console.error("SANCTUM LOAD ERROR:", {
+        source: "publications",
         status: publicationsResult.status,
         message: publicationsResult.message,
       });
       loadError = "Unable to load some dashboard data. Please refresh.";
     }
   } catch (error) {
-    console.error("SANCTUM DASHBOARD FETCH ERROR:", error);
+    console.error("SANCTUM LOAD ERROR:", error);
     loadError = "Unable to load dashboard data. Please refresh.";
   }
 

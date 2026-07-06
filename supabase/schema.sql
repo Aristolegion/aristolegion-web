@@ -62,6 +62,17 @@ alter table publications enable row level security;
 -- /library pages fetch through the service role key too, filtering on
 -- status = 'published' in the query itself — visitors never get a path to
 -- draft rows because no anon policy grants them a path to *any* rows.
+--
+-- service_role bypasses RLS, but RLS bypass and table-level GRANTs are
+-- separate Postgres privilege layers — bypassing RLS does not imply SELECT/
+-- INSERT/UPDATE/DELETE privileges exist. inner_circle_applications and
+-- newsletter_subscribers had these grants from whatever process originally
+-- provisioned them; a table created purely via `create table` (as this one
+-- was) does not automatically inherit them. Without this grant, every
+-- PostgREST request against this table fails with a permission-denied
+-- error — which is exactly what caused the Sanctum "Unable to load some
+-- dashboard data" warning until this grant was added.
+grant all on public.publications to service_role;
 
 -- Storage: a private "publications" bucket holds PDFs and cover images
 -- under two subfolders, keyed by slug:
