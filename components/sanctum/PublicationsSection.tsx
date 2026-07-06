@@ -1,0 +1,481 @@
+"use client";
+
+import { useEffect, useState, type FormEvent } from "react";
+import { Button } from "@/components/ui/Button";
+import type { PublicationWithPreview } from "@/lib/sanctum/types";
+
+interface PublicationsSectionProps {
+  initialPublications: PublicationWithPreview[];
+}
+
+interface FormState {
+  title: string;
+  slug: string;
+  category: string;
+  description: string;
+  coverImageUrl: string;
+  status: "draft" | "published";
+}
+
+const EMPTY_FORM: FormState = {
+  title: "",
+  slug: "",
+  category: "",
+  description: "",
+  coverImageUrl: "",
+  status: "draft",
+};
+
+function slugify(value: string): string {
+  return value
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
+
+function formatDate(iso: string | null): string {
+  if (!iso) return "—";
+  return new Date(iso).toLocaleDateString("en-US", {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+  });
+}
+
+function buildFormData(form: FormState, pdfFile: File | null): FormData {
+  const formData = new FormData();
+  formData.set("title", form.title);
+  formData.set("slug", form.slug);
+  formData.set("category", form.category);
+  formData.set("description", form.description);
+  formData.set("coverImageUrl", form.coverImageUrl);
+  formData.set("status", form.status);
+  if (pdfFile) {
+    formData.set("pdf", pdfFile);
+  }
+  return formData;
+}
+
+export function PublicationsSection({ initialPublications }: PublicationsSectionProps) {
+  const [publications, setPublications] = useState(initialPublications);
+  const [modalMode, setModalMode] = useState<"create" | "edit" | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [form, setForm] = useState<FormState>(EMPTY_FORM);
+  const [pdfFile, setPdfFile] = useState<File | null>(null);
+  const [slugTouched, setSlugTouched] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [formError, setFormError] = useState("");
+  const [togglingId, setTogglingId] = useState<string | null>(null);
+  const [listError, setListError] = useState("");
+
+  useEffect(() => {
+    if (!modalMode) return;
+
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        closeModal();
+      }
+    }
+
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [modalMode]);
+
+  function openCreateModal() {
+    setForm(EMPTY_FORM);
+    setPdfFile(null);
+    setSlugTouched(false);
+    setFormError("");
+    setEditingId(null);
+    setModalMode("create");
+  }
+
+  function openEditModal(publication: PublicationWithPreview) {
+    setForm({
+      title: publication.title,
+      slug: publication.slug,
+      category: publication.category,
+      description: publication.description,
+      coverImageUrl: publication.cover_image_url ?? "",
+      status: publication.status === "published" ? "published" : "draft",
+    });
+    setPdfFile(null);
+    setSlugTouched(true);
+    setFormError("");
+    setEditingId(publication.id);
+    setModalMode("edit");
+  }
+
+  function closeModal() {
+    setModalMode(null);
+    setEditingId(null);
+  }
+
+  function handleTitleChange(value: string) {
+    setForm((prev) => ({
+      ...prev,
+      title: value,
+      slug: slugTouched ? prev.slug : slugify(value),
+    }));
+  }
+
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setFormError("");
+
+    if (modalMode === "create" && !pdfFile) {
+      setFormError("A PDF file is required.");
+      return;
+    }
+
+    setSubmitting(true);
+
+    try {
+      const formData = buildFormData(form, pdfFile);
+      const response =
+        modalMode === "create"
+          ? await fetch("/api/sanctum/publications", { method: "POST", body: formData })
+          : await fetch(`/api/sanctum/publications/${editingId}`, {
+              method: "PATCH",
+              body: formData,
+            });
+
+      const data = await response.json();
+
+      if (!response.ok || !data.success) {
+        setFormError(data.error || "Unable to save the publication.");
+        return;
+      }
+
+      const saved: PublicationWithPreview = { ...data.publication, previewUrl: null };
+
+      setPublications((prev) => {
+        if (modalMode === "create") {
+          return [saved, ...prev];
+        }
+        return prev.map((item) => (item.id === saved.id ? { ...saved, previewUrl: item.previewUrl } : item));
+      });
+
+      closeModal();
+    } catch {
+      setFormError("Something went wrong. Please check your connection.");
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  async function handleToggleStatus(publication: PublicationWithPreview) {
+    setTogglingId(publication.id);
+    setListError("");
+
+    const nextStatus = publication.status === "published" ? "draft" : "published";
+    const formData = new FormData();
+    formData.set("title", publication.title);
+    formData.set("slug", publication.slug);
+    formData.set("category", publication.category);
+    formData.set("description", publication.description);
+    formData.set("coverImageUrl", publication.cover_image_url ?? "");
+    formData.set("status", nextStatus);
+
+    try {
+      const response = await fetch(`/api/sanctum/publications/${publication.id}`, {
+        method: "PATCH",
+        body: formData,
+      });
+
+      const data = await response.json();
+
+      if (!response.ok || !data.success) {
+        setListError(data.error || "Unable to update status.");
+        return;
+      }
+
+      setPublications((prev) =>
+        prev.map((item) =>
+          item.id === publication.id ? { ...data.publication, previewUrl: item.previewUrl } : item
+        )
+      );
+    } catch {
+      setListError("Something went wrong. Please check your connection.");
+    } finally {
+      setTogglingId(null);
+    }
+  }
+
+  return (
+    <section className="mt-12">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <h2 className="font-display text-xl font-semibold text-ivory md:text-2xl">
+          Publications
+        </h2>
+        <Button type="button" variant="secondary" onClick={openCreateModal}>
+          New Publication
+        </Button>
+      </div>
+
+      {listError && (
+        <p role="alert" className="mt-4 font-body text-sm text-crimson">
+          {listError}
+        </p>
+      )}
+
+      <div className="mt-4 overflow-x-auto border border-gold-muted">
+        <table className="w-full min-w-[640px] text-left">
+          <thead>
+            <tr className="border-b border-gold-muted bg-charcoal">
+              <th className="px-4 py-3 font-body text-xs font-medium uppercase tracking-wider text-ivory-muted">
+                Title
+              </th>
+              <th className="px-4 py-3 font-body text-xs font-medium uppercase tracking-wider text-ivory-muted">
+                Category
+              </th>
+              <th className="px-4 py-3 font-body text-xs font-medium uppercase tracking-wider text-ivory-muted">
+                Status
+              </th>
+              <th className="px-4 py-3 font-body text-xs font-medium uppercase tracking-wider text-ivory-muted">
+                Published
+              </th>
+              <th className="px-4 py-3 font-body text-xs font-medium uppercase tracking-wider text-ivory-muted">
+                Actions
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            {publications.map((publication) => (
+              <tr key={publication.id} className="border-b border-gold-muted/20 last:border-0">
+                <td className="px-4 py-3 font-body text-sm text-ivory">{publication.title}</td>
+                <td className="px-4 py-3 font-body text-sm text-ivory-muted">
+                  {publication.category}
+                </td>
+                <td className="px-4 py-3">
+                  <span
+                    className={`inline-block border px-2 py-1 font-body text-xs font-medium uppercase tracking-wide ${
+                      publication.status === "published"
+                        ? "border-emerald/40 text-emerald"
+                        : "border-gold-muted text-gold"
+                    }`}
+                  >
+                    {publication.status === "published" ? "Published" : "Draft"}
+                  </span>
+                </td>
+                <td className="px-4 py-3 font-body text-sm text-ivory-muted">
+                  {formatDate(publication.published_at)}
+                </td>
+                <td className="px-4 py-3">
+                  <div className="flex flex-wrap gap-3">
+                    <button
+                      type="button"
+                      onClick={() => openEditModal(publication)}
+                      className="font-body text-sm font-medium text-gold transition-colors duration-200 hover:text-ivory"
+                    >
+                      Edit
+                    </button>
+                    <button
+                      type="button"
+                      disabled={togglingId === publication.id}
+                      onClick={() => handleToggleStatus(publication)}
+                      className="font-body text-sm font-medium text-ivory-muted transition-colors duration-200 hover:text-gold disabled:opacity-50"
+                    >
+                      {togglingId === publication.id
+                        ? "Updating…"
+                        : publication.status === "published"
+                          ? "Unpublish"
+                          : "Publish"}
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            ))}
+            {publications.length === 0 && (
+              <tr>
+                <td colSpan={5} className="px-4 py-8 text-center font-body text-sm text-ivory-muted">
+                  No publications yet.
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+
+      {modalMode && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-navy/80 p-4"
+          onClick={closeModal}
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="publication-form-heading"
+            className="max-h-[90vh] w-full max-w-2xl overflow-y-auto border border-gold-muted bg-charcoal p-6 md:p-8"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="flex items-start justify-between gap-4">
+              <h2
+                id="publication-form-heading"
+                className="font-display text-2xl font-semibold text-ivory"
+              >
+                {modalMode === "create" ? "New Publication" : "Edit Publication"}
+              </h2>
+              <button
+                type="button"
+                aria-label="Close"
+                onClick={closeModal}
+                className="font-body text-sm text-ivory-muted transition-colors duration-200 hover:text-gold"
+              >
+                ✕
+              </button>
+            </div>
+
+            <form onSubmit={handleSubmit} className="mt-8 space-y-5">
+              <div>
+                <label htmlFor="pub-title" className="font-body text-xs font-medium uppercase tracking-wider text-gold">
+                  Title
+                </label>
+                <input
+                  id="pub-title"
+                  required
+                  value={form.title}
+                  onChange={(event) => handleTitleChange(event.target.value)}
+                  className="mt-2 h-11 w-full border border-gold-muted bg-transparent px-3 font-body text-sm text-ivory focus:border-gold focus:outline-none"
+                />
+              </div>
+
+              <div>
+                <label htmlFor="pub-slug" className="font-body text-xs font-medium uppercase tracking-wider text-gold">
+                  Slug
+                </label>
+                <input
+                  id="pub-slug"
+                  required
+                  value={form.slug}
+                  onChange={(event) => {
+                    setSlugTouched(true);
+                    setForm((prev) => ({ ...prev, slug: event.target.value }));
+                  }}
+                  className="mt-2 h-11 w-full border border-gold-muted bg-transparent px-3 font-body text-sm text-ivory focus:border-gold focus:outline-none"
+                />
+              </div>
+
+              <div>
+                <label htmlFor="pub-category" className="font-body text-xs font-medium uppercase tracking-wider text-gold">
+                  Category
+                </label>
+                <input
+                  id="pub-category"
+                  required
+                  value={form.category}
+                  onChange={(event) => setForm((prev) => ({ ...prev, category: event.target.value }))}
+                  className="mt-2 h-11 w-full border border-gold-muted bg-transparent px-3 font-body text-sm text-ivory focus:border-gold focus:outline-none"
+                />
+              </div>
+
+              <div>
+                <label htmlFor="pub-description" className="font-body text-xs font-medium uppercase tracking-wider text-gold">
+                  Description
+                </label>
+                <textarea
+                  id="pub-description"
+                  required
+                  rows={4}
+                  value={form.description}
+                  onChange={(event) => setForm((prev) => ({ ...prev, description: event.target.value }))}
+                  className="mt-2 w-full border border-gold-muted bg-transparent px-3 py-2 font-body text-sm text-ivory focus:border-gold focus:outline-none"
+                />
+              </div>
+
+              <div>
+                <label htmlFor="pub-cover" className="font-body text-xs font-medium uppercase tracking-wider text-gold">
+                  Cover Image URL (optional)
+                </label>
+                <input
+                  id="pub-cover"
+                  value={form.coverImageUrl}
+                  onChange={(event) => setForm((prev) => ({ ...prev, coverImageUrl: event.target.value }))}
+                  placeholder="https://…"
+                  className="mt-2 h-11 w-full border border-gold-muted bg-transparent px-3 font-body text-sm text-ivory placeholder:text-ivory-muted focus:border-gold focus:outline-none"
+                />
+              </div>
+
+              <div>
+                <label htmlFor="pub-pdf" className="font-body text-xs font-medium uppercase tracking-wider text-gold">
+                  PDF File{modalMode === "edit" ? " (leave empty to keep current file)" : ""}
+                </label>
+                <input
+                  id="pub-pdf"
+                  type="file"
+                  accept="application/pdf"
+                  onChange={(event) => setPdfFile(event.target.files?.[0] ?? null)}
+                  className="mt-2 w-full font-body text-sm text-ivory-muted file:mr-4 file:border file:border-gold-muted file:bg-transparent file:px-3 file:py-2 file:font-body file:text-sm file:text-gold"
+                />
+                {modalMode === "edit" && editingId && (
+                  <PdfPreviewLink publications={publications} editingId={editingId} />
+                )}
+              </div>
+
+              <div>
+                <span className="font-body text-xs font-medium uppercase tracking-wider text-gold">
+                  Status
+                </span>
+                <div className="mt-2 flex gap-3">
+                  <Button
+                    type="button"
+                    variant={form.status === "draft" ? "primary" : "secondary"}
+                    onClick={() => setForm((prev) => ({ ...prev, status: "draft" }))}
+                  >
+                    Draft
+                  </Button>
+                  <Button
+                    type="button"
+                    variant={form.status === "published" ? "primary" : "secondary"}
+                    onClick={() => setForm((prev) => ({ ...prev, status: "published" }))}
+                  >
+                    Published
+                  </Button>
+                </div>
+              </div>
+
+              {formError && (
+                <p role="alert" className="font-body text-sm text-crimson">
+                  {formError}
+                </p>
+              )}
+
+              <div className="flex gap-3 border-t border-gold-muted/30 pt-6">
+                <Button type="submit" variant="primary" disabled={submitting}>
+                  {submitting ? "Saving…" : "Save Publication"}
+                </Button>
+                <Button type="button" variant="ghost" onClick={closeModal}>
+                  Cancel
+                </Button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+    </section>
+  );
+}
+
+function PdfPreviewLink({
+  publications,
+  editingId,
+}: {
+  publications: PublicationWithPreview[];
+  editingId: string;
+}) {
+  const publication = publications.find((item) => item.id === editingId);
+
+  if (!publication?.previewUrl) return null;
+
+  return (
+    <a
+      href={publication.previewUrl}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="mt-2 inline-block font-body text-sm font-medium text-gold transition-colors duration-200 hover:text-ivory"
+    >
+      View current PDF ↗
+    </a>
+  );
+}

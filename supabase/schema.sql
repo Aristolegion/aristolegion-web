@@ -36,3 +36,38 @@ create table if not exists newsletter_subscribers (
 alter table newsletter_subscribers enable row level security;
 
 -- Same posture as above: no anon policies, service role only.
+
+-- Aristolegion publications (Sanctum publication management).
+-- Matches the columns read/written by:
+--   app/api/sanctum/publications/route.ts
+--   app/api/sanctum/publications/[id]/route.ts
+--   app/library/page.tsx, app/library/[slug]/page.tsx
+
+create table if not exists publications (
+  id uuid primary key default gen_random_uuid(),
+  title text not null,
+  slug text not null unique,
+  category text not null,
+  description text not null,
+  pdf_url text,
+  cover_image_url text,
+  status text not null default 'draft' check (status in ('draft', 'published')),
+  published_at timestamptz,
+  created_at timestamptz not null default now()
+);
+
+alter table publications enable row level security;
+
+-- Same posture as above: no anon policies, service role only. The public
+-- /library pages fetch through the service role key too, filtering on
+-- status = 'published' in the query itself — visitors never get a path to
+-- draft rows because no anon policy grants them a path to *any* rows.
+
+-- Storage: a private "publications" bucket holds the PDF files. pdf_url
+-- stores the object's storage path (e.g. "<publication-id>/document.pdf"),
+-- not a public URL — the bucket has no public/anon access, so every read
+-- (public library page, Sanctum preview) is served through a short-lived
+-- signed URL generated server-side with the service role key.
+insert into storage.buckets (id, name, public)
+values ('publications', 'publications', false)
+on conflict (id) do nothing;

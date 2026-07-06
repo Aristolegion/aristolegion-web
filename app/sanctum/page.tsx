@@ -3,8 +3,16 @@ import { cookies } from "next/headers";
 import { SanctumDashboard } from "@/components/sanctum/SanctumDashboard";
 import { SanctumLoginForm } from "@/components/sanctum/SanctumLoginForm";
 import { SANCTUM_SESSION_COOKIE, isValidSessionToken } from "@/lib/sanctum/auth";
-import { supabaseSelect } from "@/lib/supabase";
-import type { InnerCircleApplication, NewsletterSubscriber } from "@/lib/sanctum/types";
+import { supabaseCreateSignedUrl, supabaseSelect } from "@/lib/supabase";
+import type {
+  InnerCircleApplication,
+  NewsletterSubscriber,
+  Publication,
+  PublicationWithPreview,
+} from "@/lib/sanctum/types";
+
+const PDF_BUCKET = "publications";
+const PREVIEW_URL_TTL_SECONDS = 60 * 60; // 1 hour, just for the Sanctum preview link
 
 export const metadata: Metadata = {
   title: "Command Center | Aristolegion",
@@ -23,14 +31,18 @@ export default async function SanctumPage() {
 
   let applications: InnerCircleApplication[] = [];
   let subscribers: NewsletterSubscriber[] = [];
+  let publications: PublicationWithPreview[] = [];
   let loadError: string | null = null;
 
   try {
-    const [applicationsResult, subscribersResult] = await Promise.all([
+    const [applicationsResult, subscribersResult, publicationsResult] = await Promise.all([
       supabaseSelect<InnerCircleApplication>("inner_circle_applications", {
         order: "created_at.desc",
       }),
       supabaseSelect<NewsletterSubscriber>("newsletter_subscribers", {
+        order: "created_at.desc",
+      }),
+      supabaseSelect<Publication>("publications", {
         order: "created_at.desc",
       }),
     ]);
@@ -54,6 +66,30 @@ export default async function SanctumPage() {
       });
       loadError = "Unable to load some dashboard data. Please refresh.";
     }
+
+    if (publicationsResult.ok) {
+      publications = await Promise.all(
+        publicationsResult.data.map(async (publication) => {
+          if (!publication.pdf_url) {
+            return { ...publication, previewUrl: null };
+          }
+
+          const signed = await supabaseCreateSignedUrl(
+            PDF_BUCKET,
+            publication.pdf_url,
+            PREVIEW_URL_TTL_SECONDS
+          );
+
+          return { ...publication, previewUrl: signed.ok ? signed.url : null };
+        })
+      );
+    } else {
+      console.error("SANCTUM PUBLICATIONS FETCH ERROR:", {
+        status: publicationsResult.status,
+        message: publicationsResult.message,
+      });
+      loadError = "Unable to load some dashboard data. Please refresh.";
+    }
   } catch (error) {
     console.error("SANCTUM DASHBOARD FETCH ERROR:", error);
     loadError = "Unable to load dashboard data. Please refresh.";
@@ -63,6 +99,7 @@ export default async function SanctumPage() {
     <SanctumDashboard
       applications={applications}
       subscribers={subscribers}
+      publications={publications}
       loadError={loadError}
     />
   );
