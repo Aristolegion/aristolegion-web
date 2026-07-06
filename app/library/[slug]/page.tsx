@@ -11,6 +11,15 @@ const VIEWER_URL_TTL_SECONDS = 60 * 60; // 1 hour, regenerated on every request
 
 export const dynamicParams = true;
 
+// The 4 known static slugs are listed here, but the route must never attempt
+// static rendering — a params not in this list (any hosted Supabase
+// publication) hits a no-store fetch mid-render, and in this Next.js build
+// that produces an unrecoverable "Page changed from static to dynamic at
+// runtime" crash instead of the documented graceful SSR fallback. Forcing
+// the whole route dynamic removes the static-render attempt entirely, so
+// this class of crash can't happen for any slug, known or not.
+export const dynamic = "force-dynamic";
+
 export function generateStaticParams() {
   return publications.map((publication) => ({ slug: publication.slug }));
 }
