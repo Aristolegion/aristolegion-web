@@ -362,7 +362,7 @@ export function EssaysSection({ initialEssays }: EssaysSectionProps) {
                 <td className="px-4 py-3">
                   <div className="flex flex-wrap gap-3">
                     <a
-                      href={`/essays/${essay.slug}`}
+                      href={`/essays/${essay.slug}?preview=true`}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="font-body text-sm font-medium text-gold transition-colors duration-200 hover:text-ivory"

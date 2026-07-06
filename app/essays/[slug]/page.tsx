@@ -1,8 +1,10 @@
 import type { Metadata } from "next";
+import { cookies } from "next/headers";
 import { notFound } from "next/navigation";
 import { EssayLayout } from "@/components/essay/EssayLayout";
 import { HostedEssayLayout } from "@/components/essay/HostedEssayLayout";
 import { essays, getEssay } from "@/lib/content/essays";
+import { SANCTUM_SESSION_COOKIE, isValidSessionToken } from "@/lib/sanctum/auth";
 import { supabaseCreateSignedUrl, supabaseSelect } from "@/lib/supabase";
 import type { Essay as HostedEssay } from "@/lib/sanctum/types";
 
@@ -22,12 +24,22 @@ export function generateStaticParams() {
 
 interface EssayPageProps {
   params: Promise<{ slug: string }>;
+  searchParams: Promise<{ preview?: string }>;
 }
 
-async function getHostedEssay(slug: string): Promise<HostedEssay | null> {
+async function hasSanctumSession(): Promise<boolean> {
+  const cookieStore = await cookies();
+  const token = cookieStore.get(SANCTUM_SESSION_COOKIE)?.value;
+  return isValidSessionToken(token);
+}
+
+// `allowDraft` is only ever true when both ?preview=true is present AND the
+// request carries a valid Sanctum session cookie — an unauthenticated
+// visitor hitting the same URL still only ever sees published essays.
+async function getHostedEssay(slug: string, allowDraft: boolean): Promise<HostedEssay | null> {
   try {
     const result = await supabaseSelect<HostedEssay>("essays", {
-      filter: { slug: `eq.${slug}`, status: "eq.published" },
+      filter: allowDraft ? { slug: `eq.${slug}` } : { slug: `eq.${slug}`, status: "eq.published" },
     });
 
     if (!result.ok || result.data.length === 0) {
@@ -47,8 +59,9 @@ function hasRequiredFields(
   return Boolean(essay.title && essay.slug && essay.content);
 }
 
-export async function generateMetadata({ params }: EssayPageProps): Promise<Metadata> {
+export async function generateMetadata({ params, searchParams }: EssayPageProps): Promise<Metadata> {
   const { slug } = await params;
+  const { preview } = await searchParams;
   const essay = getEssay(slug);
 
   if (essay) {
@@ -69,15 +82,19 @@ export async function generateMetadata({ params }: EssayPageProps): Promise<Meta
     };
   }
 
-  const hosted = await getHostedEssay(slug);
+  const allowDraft = preview === "true" && (await hasSanctumSession());
+  const hosted = await getHostedEssay(slug, allowDraft);
 
   if (!hosted) {
     return {};
   }
 
+  const isDraftPreview = allowDraft && hosted.status !== "published";
+
   return {
     title: `${hosted.title} — Aristolegion Essays`,
     description: hosted.excerpt,
+    ...(isDraftPreview ? { robots: { index: false, follow: false } } : {}),
     alternates: {
       canonical: `https://aristolegion.com/essays/${hosted.slug}`,
     },
@@ -90,15 +107,17 @@ export async function generateMetadata({ params }: EssayPageProps): Promise<Meta
   };
 }
 
-export default async function EssayPage({ params }: EssayPageProps) {
+export default async function EssayPage({ params, searchParams }: EssayPageProps) {
   const { slug } = await params;
+  const { preview } = await searchParams;
   const essay = getEssay(slug);
 
   if (essay) {
     return <EssayLayout essay={essay} />;
   }
 
-  const hosted = await getHostedEssay(slug);
+  const allowDraft = preview === "true" && (await hasSanctumSession());
+  const hosted = await getHostedEssay(slug, allowDraft);
 
   if (!hosted) {
     notFound();
@@ -112,6 +131,8 @@ export default async function EssayPage({ params }: EssayPageProps) {
     });
     notFound();
   }
+
+  const isDraftPreview = allowDraft && hosted.status !== "published";
 
   let coverUrl: string | null = null;
 
@@ -137,5 +158,5 @@ export default async function EssayPage({ params }: EssayPageProps) {
     }
   }
 
-  return <HostedEssayLayout essay={hosted} coverUrl={coverUrl} />;
+  return <HostedEssayLayout essay={hosted} coverUrl={coverUrl} isDraftPreview={isDraftPreview} />;
 }

@@ -10,6 +10,7 @@ import type { Essay } from "@/lib/sanctum/types";
 interface HostedEssayLayoutProps {
   essay: Essay;
   coverUrl: string | null;
+  isDraftPreview?: boolean;
 }
 
 function formatDate(iso: string | null): string | null {
@@ -21,7 +22,7 @@ function formatDate(iso: string | null): string | null {
   });
 }
 
-export function HostedEssayLayout({ essay, coverUrl }: HostedEssayLayoutProps) {
+export function HostedEssayLayout({ essay, coverUrl, isDraftPreview = false }: HostedEssayLayoutProps) {
   const publishedLabel = formatDate(essay.published_at);
 
   return (
@@ -34,6 +35,12 @@ export function HostedEssayLayout({ essay, coverUrl }: HostedEssayLayoutProps) {
           >
             ← Back to Essays
           </Link>
+
+          {isDraftPreview && (
+            <p className="mx-auto mt-6 max-w-3xl border border-gold-muted bg-charcoal px-4 py-2 text-center font-body text-xs font-medium uppercase tracking-[0.1em] text-gold">
+              Draft Preview — visible only to Sanctum, not public
+            </p>
+          )}
 
           {coverUrl && (
             <div className="relative mx-auto mt-10 aspect-[16/9] max-w-3xl overflow-hidden border border-gold-muted">
