@@ -8,10 +8,12 @@ import type { Publication } from "@/lib/sanctum/types";
 
 interface HostedPublicationLayoutProps {
   publication: Publication;
-  viewerUrl: string;
-  downloadUrl: string;
+  pdfPreviewUrl: string | null;
+  pdfDownloadUrl: string | null;
   coverUrl: string | null;
 }
+
+const PREVIEW_UNAVAILABLE_MESSAGE = "Publication preview is temporarily unavailable.";
 
 function formatDate(iso: string | null): string | null {
   if (!iso) return null;
@@ -24,8 +26,8 @@ function formatDate(iso: string | null): string | null {
 
 export function HostedPublicationLayout({
   publication,
-  viewerUrl,
-  downloadUrl,
+  pdfPreviewUrl,
+  pdfDownloadUrl,
   coverUrl,
 }: HostedPublicationLayoutProps) {
   const publishedLabel = formatDate(publication.published_at);
@@ -70,13 +72,19 @@ export function HostedPublicationLayout({
               <p className="mt-6 font-body text-lg leading-relaxed text-ivory-muted">
                 {publication.description}
               </p>
-              <div className="mt-8 flex flex-wrap gap-4">
-                <Button href={viewerUrl} external variant="primary">
-                  Read ↗
-                </Button>
-                <Button href={downloadUrl} external variant="secondary">
-                  Download PDF ↓
-                </Button>
+              <div className="mt-8 flex flex-wrap items-center gap-4">
+                {pdfPreviewUrl && pdfDownloadUrl ? (
+                  <>
+                    <Button href={pdfPreviewUrl} external variant="primary">
+                      Read ↗
+                    </Button>
+                    <Button href={pdfDownloadUrl} external variant="secondary">
+                      Download PDF ↓
+                    </Button>
+                  </>
+                ) : (
+                  <p className="font-body text-sm text-ivory-muted">{PREVIEW_UNAVAILABLE_MESSAGE}</p>
+                )}
               </div>
             </div>
           </div>
@@ -86,23 +94,29 @@ export function HostedPublicationLayout({
       <Section background="ivory">
         <Container>
           <div className="mx-auto max-w-4xl border border-charcoal/15">
-            <object
-              data={viewerUrl}
-              type="application/pdf"
-              className="h-[80vh] w-full"
-              aria-label={`${publication.title} PDF`}
-            >
-              <p className="p-8 text-center font-body text-sm text-charcoal/70">
-                Your browser can&apos;t display the PDF inline.{" "}
-                <a
-                  href={downloadUrl}
-                  className="font-medium text-gold underline underline-offset-4"
-                >
-                  Download it instead
-                </a>
-                .
+            {pdfPreviewUrl && pdfDownloadUrl ? (
+              <object
+                data={pdfPreviewUrl}
+                type="application/pdf"
+                className="h-[80vh] w-full"
+                aria-label={`${publication.title} PDF`}
+              >
+                <p className="p-8 text-center font-body text-sm text-charcoal/70">
+                  Your browser can&apos;t display the PDF inline.{" "}
+                  <a
+                    href={pdfDownloadUrl}
+                    className="font-medium text-gold underline underline-offset-4"
+                  >
+                    Download it instead
+                  </a>
+                  .
+                </p>
+              </object>
+            ) : (
+              <p className="p-16 text-center font-body text-sm text-charcoal/70">
+                {PREVIEW_UNAVAILABLE_MESSAGE}
               </p>
-            </object>
+            )}
           </div>
         </Container>
       </Section>

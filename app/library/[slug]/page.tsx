@@ -31,9 +31,15 @@ async function getHostedPublication(slug: string): Promise<HostedPublication | n
 
     return result.data[0];
   } catch (error) {
-    console.error("LIBRARY PUBLICATION FETCH ERROR:", error);
+    console.error("HOSTED PUBLICATION LOAD ERROR:", { slug, source: "fetch", error });
     return null;
   }
+}
+
+function hasRequiredFields(
+  hosted: HostedPublication
+): hosted is HostedPublication & { title: string; slug: string; cover_image_url: string } {
+  return Boolean(hosted.title && hosted.slug && hosted.cover_image_url);
 }
 
 export async function generateMetadata({
@@ -94,45 +100,71 @@ export default async function PublicationPage({
 
   const hosted = await getHostedPublication(slug);
 
-  if (!hosted || !hosted.pdf_url) {
+  if (!hosted) {
     notFound();
   }
 
-  let signed: Awaited<ReturnType<typeof supabaseCreateSignedUrl>>;
-  try {
-    signed = await supabaseCreateSignedUrl(PUBLICATIONS_BUCKET, hosted.pdf_url, VIEWER_URL_TTL_SECONDS);
-  } catch (error) {
-    console.error("LIBRARY PDF SIGN ERROR:", error);
-    notFound();
-  }
-
-  if (!signed.ok) {
-    console.error("LIBRARY PDF SIGN ERROR:", {
-      status: signed.status,
-      message: signed.message,
+  // A publication missing its core fields isn't ready for a public page,
+  // regardless of whether its PDF happens to be reachable. The PDF itself is
+  // allowed to fail gracefully below — only these three are non-negotiable.
+  if (!hasRequiredFields(hosted)) {
+    console.error("HOSTED PUBLICATION LOAD ERROR:", {
+      slug,
+      source: "required_fields",
+      error: "Missing one or more of: title, slug, cover_image_url",
     });
     notFound();
   }
 
-  let coverUrl: string | null = null;
-  if (hosted.cover_image_url) {
+  let pdfPreviewUrl: string | null = null;
+  let pdfDownloadUrl: string | null = null;
+
+  if (hosted.pdf_url) {
     try {
-      const signedCover = await supabaseCreateSignedUrl(
-        PUBLICATIONS_BUCKET,
-        hosted.cover_image_url,
-        VIEWER_URL_TTL_SECONDS
-      );
-      coverUrl = signedCover.ok ? signedCover.url : null;
+      const signed = await supabaseCreateSignedUrl(PUBLICATIONS_BUCKET, hosted.pdf_url, VIEWER_URL_TTL_SECONDS);
+
+      if (signed.ok) {
+        pdfPreviewUrl = signed.url;
+        pdfDownloadUrl = `${signed.url}&download=${encodeURIComponent(hosted.slug)}.pdf`;
+      } else {
+        console.error("HOSTED PUBLICATION LOAD ERROR:", {
+          slug,
+          source: "pdf_signed_url",
+          error: { status: signed.status, message: signed.message },
+        });
+      }
     } catch (error) {
-      console.error("LIBRARY COVER SIGN ERROR:", error);
+      console.error("HOSTED PUBLICATION LOAD ERROR:", { slug, source: "pdf_signed_url", error });
     }
+  }
+
+  let coverUrl: string | null = null;
+
+  try {
+    const signedCover = await supabaseCreateSignedUrl(
+      PUBLICATIONS_BUCKET,
+      hosted.cover_image_url,
+      VIEWER_URL_TTL_SECONDS
+    );
+
+    if (signedCover.ok) {
+      coverUrl = signedCover.url;
+    } else {
+      console.error("HOSTED PUBLICATION LOAD ERROR:", {
+        slug,
+        source: "cover_signed_url",
+        error: { status: signedCover.status, message: signedCover.message },
+      });
+    }
+  } catch (error) {
+    console.error("HOSTED PUBLICATION LOAD ERROR:", { slug, source: "cover_signed_url", error });
   }
 
   return (
     <HostedPublicationLayout
       publication={hosted}
-      viewerUrl={signed.url}
-      downloadUrl={`${signed.url}&download=${encodeURIComponent(hosted.slug)}.pdf`}
+      pdfPreviewUrl={pdfPreviewUrl}
+      pdfDownloadUrl={pdfDownloadUrl}
       coverUrl={coverUrl}
     />
   );
