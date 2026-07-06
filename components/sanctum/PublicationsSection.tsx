@@ -399,7 +399,7 @@ export function PublicationsSection({ initialPublications }: PublicationsSection
                       rel="noopener noreferrer"
                       className="font-body text-sm font-medium text-gold transition-colors duration-200 hover:text-ivory"
                     >
-                      Preview ↗
+                      {publication.status === "published" ? "View Live ↗" : "Preview Draft ↗"}
                     </a>
                     <button
                       type="button"

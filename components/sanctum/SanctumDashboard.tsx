@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/Button";
 import { PublicationsSection } from "@/components/sanctum/PublicationsSection";
 import { EssaysSection } from "@/components/sanctum/EssaysSection";
+import { buildCsv, downloadCsv, todayForFilename } from "@/lib/csv";
 import type {
   ApplicationStatus,
   EssayWithPreview,
@@ -55,17 +56,23 @@ function StatusBadge({ status }: { status: string }) {
   );
 }
 
-function MetricCard({ label, value }: { label: string; value: number }) {
+function MetricCard({ label, value }: { label: string; value: number | string }) {
   return (
     <div className="border border-gold-muted bg-charcoal p-6">
       <p className="font-body text-xs font-medium uppercase tracking-[0.15em] text-gold">
         {label}
       </p>
       <p className="mt-3 font-display text-4xl font-bold text-ivory">
-        {value.toLocaleString()}
+        {typeof value === "number" ? value.toLocaleString() : value}
       </p>
     </div>
   );
+}
+
+function isThisMonth(iso: string): boolean {
+  const date = new Date(iso);
+  const now = new Date();
+  return date.getFullYear() === now.getFullYear() && date.getMonth() === now.getMonth();
 }
 
 export function SanctumDashboard({
@@ -133,6 +140,44 @@ export function SanctumDashboard({
     }
   }
 
+  function handleExportSubscribers() {
+    const csv = buildCsv(
+      ["email", "subscribed_at"],
+      subscribers.map((subscriber) => [subscriber.email, subscriber.created_at])
+    );
+    downloadCsv(`aristolegion-subscribers-${todayForFilename()}.csv`, csv);
+  }
+
+  function handleExportApplications() {
+    const csv = buildCsv(
+      ["full_name", "email", "role_title", "capability", "contribution", "status", "created_at"],
+      applications.map((application) => [
+        application.full_name,
+        application.email,
+        application.role_title,
+        application.capability_goal,
+        application.contribution,
+        application.status,
+        application.created_at,
+      ])
+    );
+    downloadCsv(`aristolegion-inner-circle-${todayForFilename()}.csv`, csv);
+  }
+
+  const subscribersThisMonth = subscribers.filter((subscriber) =>
+    isThisMonth(subscriber.created_at)
+  ).length;
+  const applicationsThisMonth = applications.filter((application) =>
+    isThisMonth(application.created_at)
+  ).length;
+  const pendingApplications = applications.filter(
+    (application) => application.status === "pending"
+  ).length;
+  const conversionRateLabel =
+    subscribers.length > 0
+      ? `${((applications.length / subscribers.length) * 100).toFixed(1)}%`
+      : "0.0%";
+
   return (
     <div className="min-h-screen bg-navy">
       <header className="border-b border-gold-muted px-6 py-6 md:px-10">
@@ -174,10 +219,22 @@ export function SanctumDashboard({
           <MetricCard label="Total Essays" value={essays.length} />
         </div>
 
+        <div className="mt-6 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+          <MetricCard label="Subscribers This Month" value={subscribersThisMonth} />
+          <MetricCard label="Applications This Month" value={applicationsThisMonth} />
+          <MetricCard label="Conversion Rate" value={conversionRateLabel} />
+          <MetricCard label="Pending Applications" value={pendingApplications} />
+        </div>
+
         <section className="mt-12">
-          <h2 className="font-display text-xl font-semibold text-ivory md:text-2xl">
-            Newsletter Subscribers
-          </h2>
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <h2 className="font-display text-xl font-semibold text-ivory md:text-2xl">
+              Newsletter Subscribers
+            </h2>
+            <Button type="button" variant="secondary" onClick={handleExportSubscribers}>
+              Export CSV
+            </Button>
+          </div>
           <div className="mt-4 overflow-x-auto border border-gold-muted">
             <table className="w-full min-w-[420px] text-left">
               <thead>
@@ -220,9 +277,14 @@ export function SanctumDashboard({
         </section>
 
         <section className="mt-12">
-          <h2 className="font-display text-xl font-semibold text-ivory md:text-2xl">
-            Inner Circle Applications
-          </h2>
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <h2 className="font-display text-xl font-semibold text-ivory md:text-2xl">
+              Inner Circle Applications
+            </h2>
+            <Button type="button" variant="secondary" onClick={handleExportApplications}>
+              Export CSV
+            </Button>
+          </div>
           <div className="mt-4 overflow-x-auto border border-gold-muted">
             <table className="w-full min-w-[640px] text-left">
               <thead>
