@@ -12,7 +12,7 @@ export function Newsletter() {
           <SectionHeading
             eyebrow="The Newsletter"
             title="Dispatches on Judgment, Capability, and Human Excellence"
-            description="Occasional dispatches from Aristolegion — new publications, essays, and frameworks, sent directly, with nothing to scroll past."
+            description="Receive new Aristolegion intelligence publications, essays, and frameworks exploring judgment, capability, leadership, and the future of work."
             tone="navy"
           />
           <div className="mt-8">
