@@ -6,7 +6,7 @@ import { founder } from "@/lib/content/homepage";
 // a static card matching Aristolegion's visual identity.
 export function LinkedInProfileCard() {
   return (
-    <div className="flex max-w-sm items-center gap-4 border border-gold bg-navy p-6 sm:gap-5">
+    <div className="flex max-w-sm items-center gap-4 border border-gold bg-charcoal p-6 sm:gap-5">
       <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-full border border-gold-muted sm:h-20 sm:w-20">
         <Image
           src="/images/founder-uday.png"
