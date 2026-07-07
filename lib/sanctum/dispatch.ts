@@ -17,25 +17,31 @@ interface DispatchLogContext {
   logTag: string;
 }
 
+export interface DispatchRecipient {
+  email: string;
+  /** Fully-built HTML for this one recipient (their own unsubscribe/preferences links already embedded). */
+  html: string;
+}
+
 /**
  * Sends one HTML email per recipient in small concurrent batches — the same
  * batching shape as the Newsletter Issue send endpoint
  * (app/api/sanctum/newsletter-issues/[id]/send/route.ts), extracted here so
- * Publications and Essays can reuse it without duplicating the loop, while
- * leaving that file itself untouched.
+ * Publications and Essays can reuse it without duplicating the loop. Each
+ * recipient gets their own pre-built html (not one shared body) so every
+ * subscriber's footer links point at their own token.
  */
 export async function sendToSubscribersInBatches(
-  emails: string[],
+  recipients: DispatchRecipient[],
   subject: string,
-  html: string,
   context: DispatchLogContext
 ): Promise<{ successCount: number }> {
   let successCount = 0;
 
-  for (let i = 0; i < emails.length; i += SEND_CONCURRENCY) {
-    const batch = emails.slice(i, i + SEND_CONCURRENCY);
+  for (let i = 0; i < recipients.length; i += SEND_CONCURRENCY) {
+    const batch = recipients.slice(i, i + SEND_CONCURRENCY);
     const results = await Promise.allSettled(
-      batch.map((email) => sendNewsletterIssueEmail(email, subject, html))
+      batch.map((recipient) => sendNewsletterIssueEmail(recipient.email, subject, recipient.html))
     );
 
     for (const result of results) {

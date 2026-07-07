@@ -38,10 +38,25 @@ create table if not exists newsletter_subscribers (
   email text not null unique,
   consent boolean not null default false,
   source text,
-  created_at timestamptz not null default now()
+  created_at timestamptz not null default now(),
+  unsubscribe_token text not null unique default gen_random_uuid()::text,
+  unsubscribed_at timestamptz
 );
 
 alter table newsletter_subscribers enable row level security;
+
+-- unsubscribe_token is a random, unguessable, per-subscriber credential —
+-- deliberately not the row id and doesn't encode the email — used by
+-- /preferences/[token] and /unsubscribe/[token] (both public, no Sanctum
+-- session required: possessing the token IS the authorization, the same
+-- model as every other unsubscribe link). The column default means every
+-- new subscriber gets one automatically with no application code involved;
+-- existing rows were backfilled once when this column was added.
+-- unsubscribed_at is set alongside consent = false whenever someone
+-- unsubscribes (from either page) and cleared back to null if they later
+-- reopt in from the preferences page — every subscriber-facing send (the
+-- three "Content Dispatch"/Newsletter Issue endpoints) filters on both
+-- consent = true and unsubscribed_at is null before sending.
 
 -- Same posture as above: no anon policies, service role only.
 

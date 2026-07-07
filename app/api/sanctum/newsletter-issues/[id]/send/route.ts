@@ -11,17 +11,21 @@ interface RouteParams {
   params: Promise<{ id: string }>;
 }
 
+interface Recipient {
+  email: string;
+  html: string;
+}
+
 async function sendToSubscribers(
-  emails: string[],
-  subject: string,
-  html: string
+  recipients: Recipient[],
+  subject: string
 ): Promise<{ successCount: number }> {
   let successCount = 0;
 
-  for (let i = 0; i < emails.length; i += SEND_CONCURRENCY) {
-    const batch = emails.slice(i, i + SEND_CONCURRENCY);
+  for (let i = 0; i < recipients.length; i += SEND_CONCURRENCY) {
+    const batch = recipients.slice(i, i + SEND_CONCURRENCY);
     const results = await Promise.allSettled(
-      batch.map((email) => sendNewsletterIssueEmail(email, subject, html))
+      batch.map((recipient) => sendNewsletterIssueEmail(recipient.email, subject, recipient.html))
     );
 
     for (const result of results) {
@@ -76,7 +80,12 @@ export async function POST(request: Request, { params }: RouteParams) {
       );
     }
 
-    const subscribersResult = await supabaseSelect<NewsletterSubscriber>("newsletter_subscribers", {});
+    // Same eligibility filter as the Publication/Essay dispatch endpoints —
+    // unsubscribing must actually stop Newsletter Issue emails too, or the
+    // "Unsubscribe" link in this exact email type would be a lie.
+    const subscribersResult = await supabaseSelect<NewsletterSubscriber>("newsletter_subscribers", {
+      filter: { consent: "eq.true", unsubscribed_at: "is.null" },
+    });
 
     if (!subscribersResult.ok) {
       console.error("NEWSLETTER ISSUE SEND ERROR:", {
@@ -90,10 +99,13 @@ export async function POST(request: Request, { params }: RouteParams) {
       );
     }
 
-    const emails = subscribersResult.data.map((subscriber) => subscriber.email);
-    const { subject, html } = buildNewsletterIssueEmailContent(issue);
+    const { subject } = buildNewsletterIssueEmailContent(issue);
+    const recipients = subscribersResult.data.map((subscriber) => ({
+      email: subscriber.email,
+      html: buildNewsletterIssueEmailContent(issue, subscriber.unsubscribe_token).html,
+    }));
 
-    const { successCount } = await sendToSubscribers(emails, subject, html);
+    const { successCount } = await sendToSubscribers(recipients, subject);
 
     const result = await supabaseUpdateReturning<NewsletterIssue>(
       "newsletter_issues",
@@ -120,7 +132,7 @@ export async function POST(request: Request, { params }: RouteParams) {
     return Response.json({
       success: true,
       issue: result.data,
-      subscriberCount: emails.length,
+      subscriberCount: recipients.length,
       sentCount: successCount,
     });
   } catch (error) {

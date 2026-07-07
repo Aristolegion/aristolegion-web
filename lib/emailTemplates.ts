@@ -32,6 +32,15 @@ export interface AristolegionEmailOptions {
   body: string;
   buttonText: string;
   buttonUrl: string;
+  /**
+   * Per-recipient footer links. Only ever populated for real subscriber
+   * emails (Newsletter Issues, Publications, Essays), where the caller
+   * knows which subscriber's unsubscribe_token to embed. Admin
+   * notifications and test-send previews have no real subscriber to link
+   * to, so they omit these and fall back to a "#" placeholder.
+   */
+  preferencesUrl?: string;
+  unsubscribeUrl?: string;
 }
 
 /**
@@ -50,6 +59,8 @@ export function createAristolegionEmail({
   body,
   buttonText,
   buttonUrl,
+  preferencesUrl,
+  unsubscribeUrl,
 }: AristolegionEmailOptions): string {
   return `
 <!DOCTYPE html>
@@ -122,9 +133,9 @@ export function createAristolegionEmail({
                   You are receiving this because you joined the Aristolegion Intelligence Circle.
                 </p>
                 <p style="margin:8px 0 0; color:${IVORY_MUTED}; font-family:${SANS_FONT}; font-size:12px;">
-                  <a href="#" style="color:${IVORY_MUTED}; text-decoration:underline;">Manage preferences</a>
+                  <a href="${preferencesUrl ?? "#"}" style="color:${IVORY_MUTED}; text-decoration:underline;">Manage preferences</a>
                   &nbsp;•&nbsp;
-                  <a href="#" style="color:${IVORY_MUTED}; text-decoration:underline;">Unsubscribe</a>
+                  <a href="${unsubscribeUrl ?? "#"}" style="color:${IVORY_MUTED}; text-decoration:underline;">Unsubscribe</a>
                 </p>
                 <p style="margin:8px 0 0; color:${IVORY_MUTED}; font-family:${SANS_FONT}; font-size:12px;">
                   © ${new Date().getFullYear()} Aristolegion

@@ -47,7 +47,7 @@ export async function POST(request: Request, { params }: RouteParams) {
     }
 
     const subscribersResult = await supabaseSelect<NewsletterSubscriber>("newsletter_subscribers", {
-      filter: { consent: "eq.true" },
+      filter: { consent: "eq.true", unsubscribed_at: "is.null" },
     });
 
     if (!subscribersResult.ok) {
@@ -63,13 +63,16 @@ export async function POST(request: Request, { params }: RouteParams) {
       );
     }
 
-    const emails = subscribersResult.data.map((subscriber) => subscriber.email);
-    const { subject, html } = buildEssayEmailContent(essay);
+    const { subject } = buildEssayEmailContent(essay);
+    const recipients = subscribersResult.data.map((subscriber) => ({
+      email: subscriber.email,
+      html: buildEssayEmailContent(essay, subscriber.unsubscribe_token).html,
+    }));
 
-    const { successCount } = await sendToSubscribersInBatches(emails, subject, html, {
+    const { successCount } = await sendToSubscribersInBatches(recipients, subject, {
       id: essay.id,
       title: essay.title,
-      subscriberCount: emails.length,
+      subscriberCount: recipients.length,
       logTag: LOG_TAG,
     });
 
@@ -83,7 +86,7 @@ export async function POST(request: Request, { params }: RouteParams) {
       console.error(LOG_TAG, {
         id: essay.id,
         title: essay.title,
-        subscriberCount: emails.length,
+        subscriberCount: recipients.length,
         error: { status: result.status, message: result.message },
       });
       return Response.json(
@@ -99,7 +102,7 @@ export async function POST(request: Request, { params }: RouteParams) {
     return Response.json({
       success: true,
       essay: result.data,
-      subscriberCount: emails.length,
+      subscriberCount: recipients.length,
       sentCount: successCount,
     });
   } catch (error) {

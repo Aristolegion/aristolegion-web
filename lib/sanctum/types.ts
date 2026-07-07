@@ -18,6 +18,8 @@ export interface NewsletterSubscriber {
   consent: boolean;
   source: string | null;
   created_at: string;
+  unsubscribe_token: string;
+  unsubscribed_at: string | null;
 }
 
 export type PublicationStatus = "draft" | "published";
