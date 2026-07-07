@@ -2,7 +2,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { Container } from "@/components/layout/Container";
 import { Section } from "@/components/layout/Section";
-import { LinkedInBadge } from "@/components/LinkedInBadge";
+import { LinkedInProfileCard } from "@/components/LinkedInProfileCard";
 import { SectionHeading } from "@/components/ui/SectionHeading";
 import { founder } from "@/lib/content/homepage";
 
@@ -37,7 +37,7 @@ export function FounderPreview() {
               </Link>
             </div>
             <div className="mt-10">
-              <LinkedInBadge />
+              <LinkedInProfileCard />
             </div>
           </div>
         </div>
