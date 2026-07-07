@@ -31,6 +31,16 @@ export interface Framework {
   status: FrameworkStatus;
 }
 
+export interface PublicationInsight {
+  title: string;
+  description: string;
+}
+
+export interface PublicationFrameworkPreview {
+  title: string;
+  steps: string[];
+}
+
 export interface SiteMeta {
   name: string;
   motto: string;
