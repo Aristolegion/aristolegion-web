@@ -6,7 +6,7 @@ export const size = { width: 32, height: 32 };
 export const contentType = "image/png";
 
 export default function Icon() {
-  const crest = readFileSync(join(process.cwd(), "public/images/crest.png"));
+  const crest = readFileSync(join(process.cwd(), "public/images/crest-transparent.png"));
   const src = `data:image/png;base64,${crest.toString("base64")}`;
 
   return new ImageResponse(

@@ -18,7 +18,7 @@ export function SiteHeader() {
             className="flex items-center gap-3 text-ivory transition-colors duration-200 hover:text-gold"
           >
             <Image
-              src="/images/crest.svg"
+              src="/images/crest-transparent.png"
               alt=""
               width={36}
               height={36}

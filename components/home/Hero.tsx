@@ -1,3 +1,4 @@
+import Image from "next/image";
 import { Container } from "@/components/layout/Container";
 import { Section } from "@/components/layout/Section";
 import { Button } from "@/components/ui/Button";
@@ -14,6 +15,16 @@ export function Hero() {
     >
       <Container className="py-16 md:py-32">
         <div className="mx-auto max-w-4xl text-center">
+          <div className="mb-8 flex justify-center">
+            <Image
+              src="/images/crest-transparent.png"
+              alt="Aristolegion crest"
+              width={220}
+              height={220}
+              priority
+              className="h-20 w-20 md:h-24 md:w-24"
+            />
+          </div>
           <Eyebrow className="mb-6">An Independent Intellectual Institution</Eyebrow>
           <h1 className="font-display text-balance text-4xl font-bold uppercase tracking-[0.06em] text-ivory md:text-7xl md:tracking-[0.15em] lg:text-8xl">
             {siteMeta.name}
