@@ -1,5 +1,6 @@
 import { sendNewsletterNotification } from "@/lib/email";
-import { supabaseInsert } from "@/lib/supabase";
+import type { NewsletterSubscriber } from "@/lib/sanctum/types";
+import { supabaseInsert, supabaseSelect, supabaseUpdate } from "@/lib/supabase";
 
 interface SubscribePayload {
   email?: unknown;
@@ -71,9 +72,52 @@ export async function POST(request: Request) {
   }
 
   if (!result.ok) {
-    // A unique-constraint violation means this email is already subscribed —
-    // treat that as a graceful success rather than an error.
+    // A unique-constraint violation means this email is already in the
+    // table. If it's an active subscriber, that's the existing graceful
+    // "already subscribed" success. If they previously unsubscribed
+    // (consent=false and/or unsubscribed_at set), this is a genuine
+    // resubscribe attempt — reactivate the same row (same id, same
+    // unsubscribe_token, same created_at) rather than silently doing
+    // nothing, which is what a duplicate-email insert used to do.
     if (result.status === 409) {
+      const trimmedEmail = email.trim().toLowerCase();
+
+      try {
+        const existingResult = await supabaseSelect<NewsletterSubscriber>("newsletter_subscribers", {
+          filter: { email: `eq.${trimmedEmail}` },
+        });
+
+        if (existingResult.ok && existingResult.data.length > 0) {
+          const existing = existingResult.data[0];
+
+          if (!existing.consent || existing.unsubscribed_at) {
+            const reactivateResult = await supabaseUpdate(
+              "newsletter_subscribers",
+              { email: trimmedEmail },
+              { consent: true, unsubscribed_at: null }
+            );
+
+            if (!reactivateResult.ok) {
+              console.error("NEWSLETTER REACTIVATE ERROR:", {
+                status: reactivateResult.status,
+                message: reactivateResult.message,
+              });
+              return Response.json(
+                {
+                  success: false,
+                  error: "We could not process your subscription. Please try again.",
+                },
+                { status: 502 }
+              );
+            }
+
+            return Response.json({ success: true, reactivated: true });
+          }
+        }
+      } catch (error) {
+        console.error("NEWSLETTER REACTIVATE ERROR:", error);
+      }
+
       return Response.json({ success: true, alreadySubscribed: true });
     }
 
