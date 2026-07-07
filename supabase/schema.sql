@@ -45,6 +45,15 @@ create table if not exists newsletter_subscribers (
 
 alter table newsletter_subscribers enable row level security;
 
+-- This table originally only needed SELECT (Sanctum dashboard) and INSERT
+-- (the subscribe route) for service_role — nothing ever updated a row until
+-- /api/unsubscribe/[token] and /api/preferences/[token] were added, which is
+-- exactly the same missing-grant bug class documented on
+-- inner_circle_applications and publications above. Confirmed via a live
+-- 403 (42501) on the unsubscribe endpoint in production before this line
+-- was added.
+grant update on public.newsletter_subscribers to service_role;
+
 -- unsubscribe_token is a random, unguessable, per-subscriber credential —
 -- deliberately not the row id and doesn't encode the email — used by
 -- /preferences/[token] and /unsubscribe/[token] (both public, no Sanctum
