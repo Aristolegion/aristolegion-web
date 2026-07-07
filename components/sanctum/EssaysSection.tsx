@@ -431,16 +431,24 @@ export function EssaysSection({ initialEssays }: EssaysSectionProps) {
                           ? "Unpublish"
                           : "Publish"}
                     </button>
-                    {essay.status === "published" && (
-                      <button
-                        type="button"
-                        disabled={Boolean(essay.sent_at)}
-                        onClick={() => setConfirmSendId(essay.id)}
-                        className="font-body text-sm font-medium text-gold transition-colors duration-200 hover:text-ivory disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:text-gold"
-                      >
-                        {essay.sent_at ? "Announced ✓" : "Send Announcement"}
-                      </button>
-                    )}
+                    {essay.status === "published" &&
+                      (essay.sent_at ? (
+                        <div className="font-body text-sm leading-snug">
+                          <p className="font-medium text-emerald">Announcement Sent ✓</p>
+                          <p className="text-xs text-ivory-muted">{formatDate(essay.sent_at)}</p>
+                          <p className="text-xs text-ivory-muted">
+                            {essay.sent_count} subscriber{essay.sent_count === 1 ? "" : "s"}
+                          </p>
+                        </div>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => setConfirmSendId(essay.id)}
+                          className="font-body text-sm font-medium text-gold transition-colors duration-200 hover:text-ivory"
+                        >
+                          Send Announcement
+                        </button>
+                      ))}
                     <button
                       type="button"
                       onClick={() => setConfirmDeleteId(essay.id)}

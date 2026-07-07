@@ -549,16 +549,24 @@ export function PublicationsSection({ initialPublications }: PublicationsSection
                           ? "Unpublish"
                           : "Publish"}
                     </button>
-                    {publication.status === "published" && (
-                      <button
-                        type="button"
-                        disabled={Boolean(publication.sent_at)}
-                        onClick={() => setConfirmSendId(publication.id)}
-                        className="font-body text-sm font-medium text-gold transition-colors duration-200 hover:text-ivory disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:text-gold"
-                      >
-                        {publication.sent_at ? "Announced ✓" : "Send Announcement"}
-                      </button>
-                    )}
+                    {publication.status === "published" &&
+                      (publication.sent_at ? (
+                        <div className="font-body text-sm leading-snug">
+                          <p className="font-medium text-emerald">Announcement Sent ✓</p>
+                          <p className="text-xs text-ivory-muted">{formatDate(publication.sent_at)}</p>
+                          <p className="text-xs text-ivory-muted">
+                            {publication.sent_count} subscriber{publication.sent_count === 1 ? "" : "s"}
+                          </p>
+                        </div>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => setConfirmSendId(publication.id)}
+                          className="font-body text-sm font-medium text-gold transition-colors duration-200 hover:text-ivory"
+                        >
+                          Send Announcement
+                        </button>
+                      ))}
                     <button
                       type="button"
                       onClick={() => setConfirmDeleteId(publication.id)}
