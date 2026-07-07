@@ -8,6 +8,8 @@ const BODY_TEXT = "#d4d4d8";
 const SERIF_FONT = "Georgia, 'Times New Roman', Times, serif";
 const SANS_FONT = "Arial, Helvetica, sans-serif";
 const DIVIDER = "━━━━━━━━━━━━━━";
+const CREST_URL = "https://www.aristolegion.com/images/crest.png";
+const CONTAINER_MAX_WIDTH = 520;
 
 function escapeHtml(value: string): string {
   return value
@@ -23,6 +25,8 @@ function escapeHtmlWithLineBreaks(value: string): string {
 
 export interface AristolegionEmailOptions {
   eyebrow: string;
+  /** Optional small line below the eyebrow, e.g. "ISSUE 02 • JULY 2026". */
+  metadata?: string;
   title: string;
   subtitle?: string;
   body: string;
@@ -40,6 +44,7 @@ export interface AristolegionEmailOptions {
  */
 export function createAristolegionEmail({
   eyebrow,
+  metadata,
   title,
   subtitle,
   body,
@@ -57,9 +62,16 @@ export function createAristolegionEmail({
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:${NAVY_BACKGROUND};">
       <tr>
         <td align="center" style="padding:40px 16px;">
-          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width:560px;">
+          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width:${CONTAINER_MAX_WIDTH}px;">
             <tr>
               <td align="center" style="padding-bottom:24px;">
+                <img
+                  src="${CREST_URL}"
+                  width="48"
+                  height="48"
+                  alt="Aristolegion"
+                  style="display:block; margin:0 auto 20px; width:48px; height:48px; border:0;"
+                />
                 <p style="margin:0; color:${GOLD}; font-family:${SANS_FONT}; font-size:12px; letter-spacing:0.3em;">${DIVIDER}</p>
                 <p style="margin:16px 0 0; color:${IVORY}; font-family:${SERIF_FONT}; font-size:24px; font-weight:bold; letter-spacing:0.2em;">ARISTOLEGION</p>
                 <p style="margin:12px 0 0; color:${IVORY_MUTED}; font-family:${SANS_FONT}; font-size:12px; line-height:1.6;">
@@ -73,6 +85,11 @@ export function createAristolegionEmail({
                 <p style="margin:0; color:${GOLD}; font-family:${SANS_FONT}; font-size:12px; font-weight:bold; letter-spacing:0.15em; text-transform:uppercase;">
                   ${escapeHtml(eyebrow)}
                 </p>
+                ${
+                  metadata
+                    ? `<p style="margin:8px 0 0; color:${IVORY_MUTED}; font-family:${SANS_FONT}; font-size:12px; letter-spacing:0.05em;">${escapeHtml(metadata)}</p>`
+                    : ""
+                }
                 <p style="margin:16px 0 0; color:${IVORY}; font-family:${SERIF_FONT}; font-size:26px; font-weight:bold; line-height:1.3;">
                   ${escapeHtml(title)}
                 </p>
@@ -102,10 +119,15 @@ export function createAristolegionEmail({
             <tr>
               <td align="center" style="padding:24px 16px 0;">
                 <p style="margin:0; color:${IVORY_MUTED}; font-family:${SANS_FONT}; font-size:12px; line-height:1.6;">
-                  You are receiving this because you subscribed to Aristolegion.
+                  You are receiving this because you joined the Aristolegion Intelligence Circle.
                 </p>
                 <p style="margin:8px 0 0; color:${IVORY_MUTED}; font-family:${SANS_FONT}; font-size:12px;">
-                  © Aristolegion
+                  <a href="#" style="color:${IVORY_MUTED}; text-decoration:underline;">Manage preferences</a>
+                  &nbsp;•&nbsp;
+                  <a href="#" style="color:${IVORY_MUTED}; text-decoration:underline;">Unsubscribe</a>
+                </p>
+                <p style="margin:8px 0 0; color:${IVORY_MUTED}; font-family:${SANS_FONT}; font-size:12px;">
+                  © ${new Date().getFullYear()} Aristolegion
                 </p>
               </td>
             </tr>

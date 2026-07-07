@@ -23,7 +23,7 @@ export function buildPublicationEmailContent(publication: Publication): EmailCon
       eyebrow: "INTELLIGENCE PUBLICATION",
       title: publication.title,
       body: publication.description,
-      buttonText: "Read Publication →",
+      buttonText: "Explore Intelligence →",
       buttonUrl: url,
     }),
   };
@@ -39,7 +39,7 @@ export function buildEssayEmailContent(essay: Essay): EmailContent {
       eyebrow: "NEW ESSAY",
       title: essay.title,
       body: excerpt,
-      buttonText: "Read Essay →",
+      buttonText: "Read Perspective →",
       buttonUrl: url,
     }),
   };
@@ -48,15 +48,18 @@ export function buildEssayEmailContent(essay: Essay): EmailContent {
 export function buildNewsletterIssueEmailContent(issue: NewsletterIssue): EmailContent {
   const url = `${SITE_URL}/newsletter/${issue.slug}`;
   const excerpt = excerptFromMarkdown(issue.content);
+  const monthYear = new Date().toLocaleDateString("en-US", { month: "long", year: "numeric" }).toUpperCase();
+  const metadata = issue.issue_number ? `ISSUE ${issue.issue_number.toUpperCase()} • ${monthYear}` : undefined;
 
   return {
     subject: `${issue.title} — Aristolegion Newsletter`,
     html: createAristolegionEmail({
       eyebrow: "ARISTOLEGION DISPATCH",
+      metadata,
       title: issue.title,
       subtitle: issue.subtitle,
       body: excerpt,
-      buttonText: "Read Full Issue →",
+      buttonText: "Open Dispatch →",
       buttonUrl: url,
     }),
   };
