@@ -5,17 +5,20 @@ export interface NavLink {
   href: string;
 }
 
-export interface LibraryItem {
+export interface InProgressItem {
   id: string;
   title: string;
   description: string;
-  href: string;
-  image: string;
-  category: string;
 }
 
-export interface InProgressItem {
-  id: string;
+export interface Pillar {
+  number: string;
+  title: string;
+  description: string;
+}
+
+export interface Domain {
+  number: string;
   title: string;
   description: string;
 }
@@ -32,6 +35,7 @@ export interface Founder {
   name: string;
   title: string;
   bio: string;
+  bioParagraphs: string[];
   href: string;
 }
 

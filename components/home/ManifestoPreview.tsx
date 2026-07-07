@@ -3,15 +3,6 @@ import { Container } from "@/components/layout/Container";
 import { Section } from "@/components/layout/Section";
 import { SectionHeading } from "@/components/ui/SectionHeading";
 
-const corePrinciples = [
-  "Capability",
-  "Judgment",
-  "Character",
-  "Learning",
-  "Wisdom",
-  "Human Excellence",
-];
-
 export function ManifestoPreview() {
   return (
     <Section id="manifesto" background="ivory">
@@ -22,16 +13,6 @@ export function ManifestoPreview() {
           description="Aristolegion exists to help ambitious individuals develop judgment, capability, and character in an age of accelerating change — through research, publications, essays, frameworks, and carefully designed communities."
           tone="ivory"
         />
-        <ul className="mt-10 flex flex-wrap gap-x-8 gap-y-3">
-          {corePrinciples.map((principle) => (
-            <li
-              key={principle}
-              className="font-body text-xs font-medium uppercase tracking-[0.15em] text-charcoal/60"
-            >
-              {principle}
-            </li>
-          ))}
-        </ul>
         <div className="mt-10">
           <Link
             href="/manifesto"

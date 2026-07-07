@@ -9,8 +9,8 @@ export function InProgress() {
     <Section id="in-progress" background="ivory">
       <Container>
         <SectionHeading
-          eyebrow="Active Initiatives"
-          title="In Progress"
+          eyebrow="Research Agenda"
+          title="Current Explorations"
           description="Frameworks, research, and cohort programs currently under development at Aristolegion."
           tone="ivory"
         />
