@@ -146,6 +146,8 @@ export function PublicationsSection({ initialPublications }: PublicationsSection
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [confirmSendId, setConfirmSendId] = useState<string | null>(null);
   const [sendingId, setSendingId] = useState<string | null>(null);
+  const [testSendingId, setTestSendingId] = useState<string | null>(null);
+  const [testSentId, setTestSentId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!modalMode) return;
@@ -433,6 +435,28 @@ export function PublicationsSection({ initialPublications }: PublicationsSection
     }
   }
 
+  async function handleSendTestEmail(id: string) {
+    setTestSendingId(id);
+    setListError("");
+
+    try {
+      const response = await fetch(`/api/sanctum/publications/${id}/test-send`, { method: "POST" });
+      const data = await response.json();
+
+      if (!response.ok || !data.success) {
+        setListError(data.error || "Unable to send the test email.");
+        return;
+      }
+
+      setTestSentId(id);
+      setTimeout(() => setTestSentId((current) => (current === id ? null : current)), 2000);
+    } catch {
+      setListError("Something went wrong. Please check your connection.");
+    } finally {
+      setTestSendingId(null);
+    }
+  }
+
   const sendingPublication = publications.find((item) => item.id === confirmSendId) ?? null;
 
   return (
@@ -567,6 +591,18 @@ export function PublicationsSection({ initialPublications }: PublicationsSection
                           Send Announcement
                         </button>
                       ))}
+                    <button
+                      type="button"
+                      disabled={testSendingId === publication.id}
+                      onClick={() => handleSendTestEmail(publication.id)}
+                      className="font-body text-sm font-medium text-ivory-muted transition-colors duration-200 hover:text-gold disabled:opacity-50"
+                    >
+                      {testSendingId === publication.id
+                        ? "Sending…"
+                        : testSentId === publication.id
+                          ? "Test Sent ✓"
+                          : "Send Test Email"}
+                    </button>
                     <button
                       type="button"
                       onClick={() => setConfirmDeleteId(publication.id)}

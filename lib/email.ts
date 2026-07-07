@@ -1,3 +1,5 @@
+import { createAristolegionEmail } from "@/lib/emailTemplates";
+
 const RESEND_API_KEY = process.env.RESEND_API_KEY;
 const ADMIN_NOTIFICATION_EMAIL = process.env.ADMIN_NOTIFICATION_EMAIL;
 
@@ -14,10 +16,16 @@ type SendEmailResult =
  * dashboard, or every send will fail — see RESEND_API_KEY in .env.example.
  * Never throws: callers are expected to treat email as best-effort and
  * never let a failure here affect the caller's own success response.
+ *
+ * `body` is always sent as the plain-text part (Resend/most clients use it
+ * as a fallback); pass `html` too to send the branded Aristolegion template
+ * built by lib/emailTemplates.ts — omitting it keeps the old plain-text-only
+ * behavior for any caller that hasn't been updated.
  */
 export async function sendAdminNotificationEmail(
   subject: string,
-  body: string
+  body: string,
+  html?: string
 ): Promise<SendEmailResult> {
   if (!RESEND_API_KEY || !ADMIN_NOTIFICATION_EMAIL) {
     return { ok: false, status: 0, message: "Resend is not configured." };
@@ -34,6 +42,7 @@ export async function sendAdminNotificationEmail(
       to: [ADMIN_NOTIFICATION_EMAIL],
       subject,
       text: body,
+      ...(html ? { html } : {}),
     }),
     cache: "no-store",
   });
@@ -85,14 +94,22 @@ export async function sendNewsletterIssueEmail(
 }
 
 export async function sendNewsletterNotification(email: string): Promise<SendEmailResult> {
-  return sendAdminNotificationEmail(
-    "New Newsletter Subscriber — Aristolegion",
-    `New subscriber joined Aristolegion.
+  const subject = "New Newsletter Subscriber — Aristolegion";
+  const textBody = `New subscriber joined Aristolegion.
 
 Email:
 ${email}
 
 View subscribers:
-https://www.aristolegion.com/sanctum`
-  );
+https://www.aristolegion.com/sanctum`;
+
+  const html = createAristolegionEmail({
+    eyebrow: "SANCTUM UPDATE",
+    title: "New Subscriber Joined",
+    body: `A new reader has joined Aristolegion.\n\nEmail:\n${email}`,
+    buttonText: "Open Sanctum →",
+    buttonUrl: "https://www.aristolegion.com/sanctum",
+  });
+
+  return sendAdminNotificationEmail(subject, textBody, html);
 }

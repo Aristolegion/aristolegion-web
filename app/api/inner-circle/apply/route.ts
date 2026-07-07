@@ -1,4 +1,5 @@
 import { sendAdminNotificationEmail } from "@/lib/email";
+import { createAristolegionEmail } from "@/lib/emailTemplates";
 import { supabaseInsert } from "@/lib/supabase";
 
 interface ApplicationPayload {
@@ -93,6 +94,14 @@ export async function POST(request: Request) {
     // Best-effort notification only — a failed send must never fail the
     // application itself, which is already safely stored in Supabase.
     try {
+      const html = createAristolegionEmail({
+        eyebrow: "INNER CIRCLE",
+        title: "New Inner Circle Application",
+        body: `Name:\n${name.trim()}\n\nRole:\n${role.trim()}\n\nEmail:\n${email.trim().toLowerCase()}`,
+        buttonText: "Review Application →",
+        buttonUrl: "https://www.aristolegion.com/sanctum",
+      });
+
       const emailResult = await sendAdminNotificationEmail(
         "New Inner Circle Application — Aristolegion",
         `New Inner Circle application received.
@@ -107,7 +116,8 @@ Role:
 ${role.trim()}
 
 View:
-https://www.aristolegion.com/sanctum`
+https://www.aristolegion.com/sanctum`,
+        html
       );
 
       if (!emailResult.ok) {

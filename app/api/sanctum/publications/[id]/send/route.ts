@@ -1,37 +1,14 @@
 import { cookies } from "next/headers";
 import { SANCTUM_SESSION_COOKIE, isValidSessionToken } from "@/lib/sanctum/auth";
-import { escapeHtml, sendToSubscribersInBatches } from "@/lib/sanctum/dispatch";
+import { sendToSubscribersInBatches } from "@/lib/sanctum/dispatch";
+import { buildPublicationEmailContent } from "@/lib/sanctum/emailContent";
 import type { NewsletterSubscriber, Publication } from "@/lib/sanctum/types";
 import { supabaseSelect, supabaseUpdateReturning } from "@/lib/supabase";
 
-const SITE_URL = "https://www.aristolegion.com";
 const LOG_TAG = "PUBLICATION SEND ERROR";
 
 interface RouteParams {
   params: Promise<{ id: string }>;
-}
-
-function buildPublicationEmailHtml(publication: Publication, url: string): string {
-  return `
-    <div style="font-family: Georgia, 'Times New Roman', serif; max-width: 600px; margin: 0 auto; padding: 32px 24px; color: #1a1a1a;">
-      <p style="font-size: 12px; letter-spacing: 0.15em; text-transform: uppercase; color: #9c7a1e; margin: 0 0 16px;">
-        Aristolegion Publications
-      </p>
-      <p style="font-size: 15px; line-height: 1.6; color: #333333; margin: 0 0 20px;">
-        Aristolegion has released a new publication.
-      </p>
-      <h1 style="font-size: 26px; line-height: 1.3; margin: 0 0 20px;">${escapeHtml(publication.title)}</h1>
-      <p style="font-size: 15px; line-height: 1.6; color: #333333; margin: 0 0 28px;">
-        ${escapeHtml(publication.description)}
-      </p>
-      <a
-        href="${url}"
-        style="display: inline-block; background: #1a1a2e; color: #ffffff; padding: 12px 24px; text-decoration: none; font-size: 14px; letter-spacing: 0.05em;"
-      >
-        Read Publication →
-      </a>
-    </div>
-  `.trim();
 }
 
 export async function POST(request: Request, { params }: RouteParams) {
@@ -87,9 +64,7 @@ export async function POST(request: Request, { params }: RouteParams) {
     }
 
     const emails = subscribersResult.data.map((subscriber) => subscriber.email);
-    const url = `${SITE_URL}/library/${publication.slug}`;
-    const html = buildPublicationEmailHtml(publication, url);
-    const subject = `New Aristolegion Publication: ${publication.title}`;
+    const { subject, html } = buildPublicationEmailContent(publication);
 
     const { successCount } = await sendToSubscribersInBatches(emails, subject, html, {
       id: publication.id,

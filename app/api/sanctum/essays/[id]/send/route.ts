@@ -1,38 +1,14 @@
 import { cookies } from "next/headers";
-import { excerptFromMarkdown } from "@/lib/markdown";
 import { SANCTUM_SESSION_COOKIE, isValidSessionToken } from "@/lib/sanctum/auth";
-import { escapeHtml, sendToSubscribersInBatches } from "@/lib/sanctum/dispatch";
+import { sendToSubscribersInBatches } from "@/lib/sanctum/dispatch";
+import { buildEssayEmailContent } from "@/lib/sanctum/emailContent";
 import type { Essay, NewsletterSubscriber } from "@/lib/sanctum/types";
 import { supabaseSelect, supabaseUpdateReturning } from "@/lib/supabase";
 
-const SITE_URL = "https://www.aristolegion.com";
 const LOG_TAG = "ESSAY SEND ERROR";
 
 interface RouteParams {
   params: Promise<{ id: string }>;
-}
-
-function buildEssayEmailHtml(essay: Essay, excerpt: string, url: string): string {
-  return `
-    <div style="font-family: Georgia, 'Times New Roman', serif; max-width: 600px; margin: 0 auto; padding: 32px 24px; color: #1a1a1a;">
-      <p style="font-size: 12px; letter-spacing: 0.15em; text-transform: uppercase; color: #9c7a1e; margin: 0 0 16px;">
-        Aristolegion Essays
-      </p>
-      <p style="font-size: 15px; line-height: 1.6; color: #333333; margin: 0 0 20px;">
-        A new essay is available from Aristolegion.
-      </p>
-      <h1 style="font-size: 26px; line-height: 1.3; margin: 0 0 20px;">${escapeHtml(essay.title)}</h1>
-      <p style="font-size: 15px; line-height: 1.6; color: #333333; margin: 0 0 28px;">
-        ${escapeHtml(excerpt)}
-      </p>
-      <a
-        href="${url}"
-        style="display: inline-block; background: #1a1a2e; color: #ffffff; padding: 12px 24px; text-decoration: none; font-size: 14px; letter-spacing: 0.05em;"
-      >
-        Read Essay →
-      </a>
-    </div>
-  `.trim();
 }
 
 export async function POST(request: Request, { params }: RouteParams) {
@@ -88,10 +64,7 @@ export async function POST(request: Request, { params }: RouteParams) {
     }
 
     const emails = subscribersResult.data.map((subscriber) => subscriber.email);
-    const url = `${SITE_URL}/essays/${essay.slug}`;
-    const excerpt = excerptFromMarkdown(essay.content);
-    const html = buildEssayEmailHtml(essay, excerpt, url);
-    const subject = `New Aristolegion Essay: ${essay.title}`;
+    const { subject, html } = buildEssayEmailContent(essay);
 
     const { successCount } = await sendToSubscribersInBatches(emails, subject, html, {
       id: essay.id,

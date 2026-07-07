@@ -1,42 +1,14 @@
 import { cookies } from "next/headers";
 import { sendNewsletterIssueEmail } from "@/lib/email";
-import { excerptFromMarkdown } from "@/lib/markdown";
 import { SANCTUM_SESSION_COOKIE, isValidSessionToken } from "@/lib/sanctum/auth";
+import { buildNewsletterIssueEmailContent } from "@/lib/sanctum/emailContent";
 import type { NewsletterIssue, NewsletterSubscriber } from "@/lib/sanctum/types";
 import { supabaseSelect, supabaseUpdateReturning } from "@/lib/supabase";
 
-const SITE_URL = "https://www.aristolegion.com";
 const SEND_CONCURRENCY = 10;
 
 interface RouteParams {
   params: Promise<{ id: string }>;
-}
-
-function escapeHtml(value: string): string {
-  return value
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;");
-}
-
-function buildIssueEmailHtml(issue: NewsletterIssue, excerpt: string, url: string): string {
-  return `
-    <div style="font-family: Georgia, 'Times New Roman', serif; max-width: 600px; margin: 0 auto; padding: 32px 24px; color: #1a1a1a;">
-      <p style="font-size: 12px; letter-spacing: 0.15em; text-transform: uppercase; color: #9c7a1e; margin: 0 0 16px;">
-        Aristolegion Newsletter${issue.issue_number ? ` &middot; Issue ${escapeHtml(issue.issue_number)}` : ""}
-      </p>
-      <h1 style="font-size: 26px; line-height: 1.3; margin: 0 0 8px;">${escapeHtml(issue.title)}</h1>
-      <p style="font-size: 16px; color: #444444; margin: 0 0 20px;">${escapeHtml(issue.subtitle)}</p>
-      <p style="font-size: 15px; line-height: 1.6; color: #333333; margin: 0 0 28px;">${escapeHtml(excerpt)}</p>
-      <a
-        href="${url}"
-        style="display: inline-block; background: #1a1a2e; color: #ffffff; padding: 12px 24px; text-decoration: none; font-size: 14px; letter-spacing: 0.05em;"
-      >
-        Read full issue →
-      </a>
-    </div>
-  `.trim();
 }
 
 async function sendToSubscribers(
@@ -119,10 +91,7 @@ export async function POST(request: Request, { params }: RouteParams) {
     }
 
     const emails = subscribersResult.data.map((subscriber) => subscriber.email);
-    const url = `${SITE_URL}/newsletter/${issue.slug}`;
-    const excerpt = excerptFromMarkdown(issue.content);
-    const html = buildIssueEmailHtml(issue, excerpt, url);
-    const subject = `${issue.title} — Aristolegion Newsletter`;
+    const { subject, html } = buildNewsletterIssueEmailContent(issue);
 
     const { successCount } = await sendToSubscribers(emails, subject, html);
 
