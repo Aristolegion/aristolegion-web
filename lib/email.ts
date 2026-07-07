@@ -46,6 +46,44 @@ export async function sendAdminNotificationEmail(
   return { ok: true };
 }
 
+/**
+ * Sends one HTML email to one subscriber — used by the newsletter issue
+ * "Send to Subscribers" flow, which calls this once per recipient rather
+ * than putting the whole list in a single "to" array (that would leak every
+ * subscriber's address to every other subscriber).
+ */
+export async function sendNewsletterIssueEmail(
+  to: string,
+  subject: string,
+  html: string
+): Promise<SendEmailResult> {
+  if (!RESEND_API_KEY) {
+    return { ok: false, status: 0, message: "Resend is not configured." };
+  }
+
+  const response = await fetch("https://api.resend.com/emails", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${RESEND_API_KEY}`,
+    },
+    body: JSON.stringify({
+      from: "Aristolegion Newsletter <newsletter@aristolegion.com>",
+      to: [to],
+      subject,
+      html,
+    }),
+    cache: "no-store",
+  });
+
+  if (!response.ok) {
+    const message = await response.text().catch(() => "");
+    return { ok: false, status: response.status, message };
+  }
+
+  return { ok: true };
+}
+
 export async function sendNewsletterNotification(email: string): Promise<SendEmailResult> {
   return sendAdminNotificationEmail(
     "New Newsletter Subscriber — Aristolegion",

@@ -55,6 +55,10 @@ export function buildEssayCoverPath(slug: string, extension: string): string {
   return `essay-covers/${slug}-cover.${extension}`;
 }
 
+export function buildNewsletterCoverPath(slug: string, extension: string): string {
+  return `newsletter-covers/${slug}-cover.${extension}`;
+}
+
 // The client only ever hands back a storage path it was itself just given a
 // signed upload URL for, but we re-derive and compare rather than trust it
 // outright — so a tampered request can't point a publication row at some

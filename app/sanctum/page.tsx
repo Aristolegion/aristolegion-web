@@ -8,6 +8,8 @@ import type {
   Essay,
   EssayWithPreview,
   InnerCircleApplication,
+  NewsletterIssue,
+  NewsletterIssueWithPreview,
   NewsletterSubscriber,
   Publication,
   PublicationWithPreview,
@@ -35,23 +37,28 @@ export default async function SanctumPage() {
   let subscribers: NewsletterSubscriber[] = [];
   let publications: PublicationWithPreview[] = [];
   let essays: EssayWithPreview[] = [];
+  let newsletterIssues: NewsletterIssueWithPreview[] = [];
   let loadError: string | null = null;
 
   try {
-    const [applicationsResult, subscribersResult, publicationsResult, essaysResult] = await Promise.all([
-      supabaseSelect<InnerCircleApplication>("inner_circle_applications", {
-        order: "created_at.desc",
-      }),
-      supabaseSelect<NewsletterSubscriber>("newsletter_subscribers", {
-        order: "created_at.desc",
-      }),
-      supabaseSelect<Publication>("publications", {
-        order: "created_at.desc",
-      }),
-      supabaseSelect<Essay>("essays", {
-        order: "created_at.desc",
-      }),
-    ]);
+    const [applicationsResult, subscribersResult, publicationsResult, essaysResult, newsletterIssuesResult] =
+      await Promise.all([
+        supabaseSelect<InnerCircleApplication>("inner_circle_applications", {
+          order: "created_at.desc",
+        }),
+        supabaseSelect<NewsletterSubscriber>("newsletter_subscribers", {
+          order: "created_at.desc",
+        }),
+        supabaseSelect<Publication>("publications", {
+          order: "created_at.desc",
+        }),
+        supabaseSelect<Essay>("essays", {
+          order: "created_at.desc",
+        }),
+        supabaseSelect<NewsletterIssue>("newsletter_issues", {
+          order: "created_at.desc",
+        }),
+      ]);
 
     if (applicationsResult.ok) {
       applications = applicationsResult.data;
@@ -149,6 +156,34 @@ export default async function SanctumPage() {
       });
       loadError = "Unable to load some dashboard data. Please refresh.";
     }
+
+    if (newsletterIssuesResult.ok) {
+      newsletterIssues = await Promise.all(
+        newsletterIssuesResult.data.map(async (issue) => {
+          const coverSigned = issue.cover_image_url
+            ? await supabaseCreateSignedUrl(PDF_BUCKET, issue.cover_image_url, PREVIEW_URL_TTL_SECONDS)
+            : null;
+
+          if (coverSigned && !coverSigned.ok) {
+            console.error("NEWSLETTER ISSUE CMS ERROR:", {
+              source: "cover_signed_url",
+              issueId: issue.id,
+              status: coverSigned.status,
+              message: coverSigned.message,
+            });
+          }
+
+          return { ...issue, coverPreviewUrl: coverSigned?.ok ? coverSigned.url : null };
+        })
+      );
+    } else {
+      console.error("NEWSLETTER ISSUE CMS ERROR:", {
+        source: "fetch",
+        status: newsletterIssuesResult.status,
+        message: newsletterIssuesResult.message,
+      });
+      loadError = "Unable to load some dashboard data. Please refresh.";
+    }
   } catch (error) {
     console.error("SANCTUM LOAD ERROR:", error);
     loadError = "Unable to load dashboard data. Please refresh.";
@@ -160,6 +195,7 @@ export default async function SanctumPage() {
       subscribers={subscribers}
       publications={publications}
       essays={essays}
+      newsletterIssues={newsletterIssues}
       loadError={loadError}
     />
   );

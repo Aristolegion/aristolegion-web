@@ -125,3 +125,42 @@ grant all on public.essays to service_role;
 -- Same signed-URL-only read pattern as PDFs and publication covers above —
 -- no new bucket needed, no public access, cover_image_url stores the
 -- storage path, not a public URL.
+
+-- Aristolegion newsletter issues (Sanctum newsletter publishing engine).
+-- Matches the columns read/written by:
+--   app/api/sanctum/newsletter-issues/route.ts
+--   app/api/sanctum/newsletter-issues/[id]/route.ts
+--   app/api/sanctum/newsletter-issues/[id]/send/route.ts
+--   app/newsletter/page.tsx, app/newsletter/[slug]/page.tsx
+
+create table if not exists newsletter_issues (
+  id uuid primary key default gen_random_uuid(),
+  title text not null,
+  slug text not null unique,
+  subtitle text not null,
+  issue_number text not null,
+  content text not null,
+  cover_image_url text,
+  status text not null default 'draft' check (status in ('draft', 'published')),
+  sent_at timestamptz,
+  sent_count integer not null default 0,
+  created_at timestamptz not null default now()
+);
+
+alter table newsletter_issues enable row level security;
+
+-- Same posture as publications/essays: no anon policies, service role only,
+-- full CRUD grant applied up front so this table never hits the missing-grant
+-- bug class described above.
+grant all on public.newsletter_issues to service_role;
+
+-- Newsletter issue cover images reuse the existing private "publications"
+-- bucket under a fourth subfolder, keyed by slug:
+--   newsletter-covers/<slug>-cover.<jpg|png|webp>
+-- Same signed-URL-only read pattern as every other asset in this bucket.
+--
+-- sent_at / sent_count are set exclusively by the send endpoint, never by the
+-- create/edit routes — publishing an issue (making its page live) and
+-- sending it to subscribers (emailing them) are deliberately separate
+-- actions. The send endpoint refuses to run a second time once sent_at is
+-- set, so clicking "Send to Subscribers" can never double-email a list.

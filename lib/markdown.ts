@@ -84,3 +84,20 @@ export function parseMarkdown(content: string): MarkdownBlock[] {
 
   return blocks;
 }
+
+// Newsletter issues have no dedicated excerpt column — the send email needs
+// one anyway, so it's derived from the parsed body: plain text, inline
+// **bold**/*italic* markers stripped, collapsed to a single line and
+// truncated at a word boundary.
+export function excerptFromMarkdown(content: string, maxLength = 220): string {
+  const blocks = parseMarkdown(content);
+  const text = blocks
+    .map((block) => ("text" in block ? block.text : block.items.join(" ")))
+    .join(" ")
+    .replace(/\*\*|\*|_/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  if (text.length <= maxLength) return text;
+  return `${text.slice(0, maxLength).trimEnd()}…`;
+}

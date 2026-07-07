@@ -58,3 +58,23 @@ export interface Essay {
 export interface EssayWithPreview extends Essay {
   coverPreviewUrl: string | null;
 }
+
+export type NewsletterIssueStatus = "draft" | "published";
+
+export interface NewsletterIssue {
+  id: string;
+  title: string;
+  slug: string;
+  subtitle: string;
+  issue_number: string;
+  content: string;
+  cover_image_url: string | null;
+  status: string;
+  sent_at: string | null;
+  sent_count: number;
+  created_at: string;
+}
+
+export interface NewsletterIssueWithPreview extends NewsletterIssue {
+  coverPreviewUrl: string | null;
+}

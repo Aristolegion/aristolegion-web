@@ -4,11 +4,13 @@ import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/Button";
 import { PublicationsSection } from "@/components/sanctum/PublicationsSection";
 import { EssaysSection } from "@/components/sanctum/EssaysSection";
+import { NewsletterIssuesSection } from "@/components/sanctum/NewsletterIssuesSection";
 import { buildCsv, downloadCsv, todayForFilename } from "@/lib/csv";
 import type {
   ApplicationStatus,
   EssayWithPreview,
   InnerCircleApplication,
+  NewsletterIssueWithPreview,
   NewsletterSubscriber,
   PublicationWithPreview,
 } from "@/lib/sanctum/types";
@@ -18,6 +20,7 @@ interface SanctumDashboardProps {
   subscribers: NewsletterSubscriber[];
   publications: PublicationWithPreview[];
   essays: EssayWithPreview[];
+  newsletterIssues: NewsletterIssueWithPreview[];
   loadError: string | null;
 }
 
@@ -80,6 +83,7 @@ export function SanctumDashboard({
   subscribers,
   publications,
   essays,
+  newsletterIssues,
   loadError,
 }: SanctumDashboardProps) {
   const [applications, setApplications] = useState(initialApplications);
@@ -226,6 +230,10 @@ export function SanctumDashboard({
           <MetricCard label="Pending Applications" value={pendingApplications} />
         </div>
 
+        <div className="mt-6 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+          <MetricCard label="Total Newsletter Issues" value={newsletterIssues.length} />
+        </div>
+
         <section className="mt-12">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <h2 className="font-display text-xl font-semibold text-ivory md:text-2xl">
@@ -348,6 +356,8 @@ export function SanctumDashboard({
         <PublicationsSection initialPublications={publications} />
 
         <EssaysSection initialEssays={essays} />
+
+        <NewsletterIssuesSection initialIssues={newsletterIssues} />
       </main>
 
       {selectedApplication && (
