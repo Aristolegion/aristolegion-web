@@ -2,12 +2,12 @@ import { cookies } from "next/headers";
 import { SANCTUM_SESSION_COOKIE, isValidSessionToken } from "@/lib/sanctum/auth";
 import {
   PUBLICATIONS_BUCKET,
+  SLUG_PATTERN,
   buildCoverPath,
   buildPdfPath,
   getExtensionFromPath,
-  getImageExtension,
-  isImageFile,
-  isPdfFile,
+  isExpectedCoverPath,
+  isExpectedPdfPath,
 } from "@/lib/sanctum/publicationStorage";
 import {
   supabaseDelete,
@@ -15,18 +15,26 @@ import {
   supabaseMoveFile,
   supabaseSelect,
   supabaseUpdateReturning,
-  supabaseUploadFile,
 } from "@/lib/supabase";
 import type { Publication, PublicationStatus } from "@/lib/sanctum/types";
 
 const VALID_STATUSES: PublicationStatus[] = ["draft", "published"];
-const SLUG_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 
 interface RouteParams {
   params: Promise<{ id: string }>;
 }
 
-function isNonEmptyString(value: FormDataEntryValue | null): value is string {
+interface UpdatePublicationBody {
+  title?: unknown;
+  slug?: unknown;
+  category?: unknown;
+  description?: unknown;
+  status?: unknown;
+  pdfPath?: unknown;
+  coverPath?: unknown;
+}
+
+function isNonEmptyString(value: unknown): value is string {
   return typeof value === "string" && value.trim().length > 0;
 }
 
@@ -40,20 +48,14 @@ export async function PATCH(request: Request, { params }: RouteParams) {
 
   const { id } = await params;
 
-  let formData: FormData;
+  let body: UpdatePublicationBody;
   try {
-    formData = await request.formData();
+    body = await request.json();
   } catch {
     return Response.json({ success: false, error: "Invalid request." }, { status: 400 });
   }
 
-  const title = formData.get("title");
-  const slug = formData.get("slug");
-  const category = formData.get("category");
-  const description = formData.get("description");
-  const status = formData.get("status");
-  const pdf = formData.get("pdf");
-  const cover = formData.get("cover");
+  const { title, slug, category, description, status, pdfPath: newPdfPath, coverPath: newCoverPath } = body;
 
   if (
     !isNonEmptyString(title) ||
@@ -78,6 +80,17 @@ export async function PATCH(request: Request, { params }: RouteParams) {
     return Response.json({ success: false, error: "Invalid status." }, { status: 400 });
   }
 
+  if (newPdfPath !== undefined && (!isNonEmptyString(newPdfPath) || !isExpectedPdfPath(newPdfPath, slug.trim()))) {
+    return Response.json({ success: false, error: "Invalid PDF file reference." }, { status: 400 });
+  }
+
+  if (
+    newCoverPath !== undefined &&
+    (!isNonEmptyString(newCoverPath) || !isExpectedCoverPath(newCoverPath, slug.trim()))
+  ) {
+    return Response.json({ success: false, error: "Invalid cover image reference." }, { status: 400 });
+  }
+
   try {
     const existingResult = await supabaseSelect<Publication>("publications", {
       filter: { id: `eq.${id}` },
@@ -96,23 +109,11 @@ export async function PATCH(request: Request, { params }: RouteParams) {
 
     let pdfPath = existing.pdf_url;
 
-    if (isPdfFile(pdf)) {
-      pdfPath = buildPdfPath(trimmedSlug);
-      const uploadResult = await supabaseUploadFile(PUBLICATIONS_BUCKET, pdfPath, pdf, "application/pdf");
-
-      if (!uploadResult.ok) {
-        console.error("SANCTUM PUBLICATION UPLOAD ERROR:", {
-          status: uploadResult.status,
-          message: uploadResult.message,
-        });
-        return Response.json(
-          { success: false, error: "Unable to upload the PDF. Please try again." },
-          { status: 500 }
-        );
-      }
+    if (isNonEmptyString(newPdfPath)) {
+      pdfPath = newPdfPath;
     } else if (slugChanged && existing.pdf_url) {
-      const newPdfPath = buildPdfPath(trimmedSlug);
-      const moveResult = await supabaseMoveFile(PUBLICATIONS_BUCKET, existing.pdf_url, newPdfPath);
+      const movedPdfPath = buildPdfPath(trimmedSlug);
+      const moveResult = await supabaseMoveFile(PUBLICATIONS_BUCKET, existing.pdf_url, movedPdfPath);
 
       if (!moveResult.ok) {
         console.error("SANCTUM PUBLICATION MOVE ERROR:", {
@@ -124,33 +125,16 @@ export async function PATCH(request: Request, { params }: RouteParams) {
           { status: 500 }
         );
       }
-      pdfPath = newPdfPath;
+      pdfPath = movedPdfPath;
     }
 
     let coverPath = existing.cover_image_url;
 
-    if (isImageFile(cover)) {
-      coverPath = buildCoverPath(trimmedSlug, getImageExtension(cover));
-      const uploadResult = await supabaseUploadFile(
-        PUBLICATIONS_BUCKET,
-        coverPath,
-        cover,
-        cover.type || "image/webp"
-      );
-
-      if (!uploadResult.ok) {
-        console.error("SANCTUM PUBLICATION UPLOAD ERROR:", {
-          status: uploadResult.status,
-          message: uploadResult.message,
-        });
-        return Response.json(
-          { success: false, error: "Unable to upload the cover image. Please try again." },
-          { status: 500 }
-        );
-      }
+    if (isNonEmptyString(newCoverPath)) {
+      coverPath = newCoverPath;
     } else if (slugChanged && existing.cover_image_url) {
-      const newCoverPath = buildCoverPath(trimmedSlug, getExtensionFromPath(existing.cover_image_url));
-      const moveResult = await supabaseMoveFile(PUBLICATIONS_BUCKET, existing.cover_image_url, newCoverPath);
+      const movedCoverPath = buildCoverPath(trimmedSlug, getExtensionFromPath(existing.cover_image_url));
+      const moveResult = await supabaseMoveFile(PUBLICATIONS_BUCKET, existing.cover_image_url, movedCoverPath);
 
       if (!moveResult.ok) {
         console.error("SANCTUM PUBLICATION MOVE ERROR:", {
@@ -162,7 +146,7 @@ export async function PATCH(request: Request, { params }: RouteParams) {
           { status: 500 }
         );
       }
-      coverPath = newCoverPath;
+      coverPath = movedCoverPath;
     }
 
     const patch: Record<string, unknown> = {

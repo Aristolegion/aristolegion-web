@@ -33,6 +33,10 @@ type SupabaseSignedUrlResult =
   | { ok: true; url: string }
   | { ok: false; status: number; message: string };
 
+type SupabaseSignedUploadUrlResult =
+  | { ok: true; url: string }
+  | { ok: false; status: number; message: string };
+
 /**
  * Server-only Supabase helpers, using plain fetch against Supabase's
  * PostgREST API — avoids pulling in the @supabase/supabase-js SDK.
@@ -321,6 +325,41 @@ export async function supabaseCreateSignedUrl(
 
   const data = (await response.json()) as { signedURL: string };
   return { ok: true, url: `${url}/storage/v1${data.signedURL}` };
+}
+
+/**
+ * Creates a short-lived signed upload URL so the browser can PUT a file
+ * (PDF or cover image) straight to Supabase Storage, bypassing the Vercel
+ * function body-size limit entirely — our API route never sees the file
+ * bytes. Only this server-side call (using the service role key) can mint
+ * the URL; the token embedded in it is what authorizes the one upload, the
+ * same way a signed read URL authorizes one download without any anon
+ * storage policy.
+ */
+export async function supabaseCreateSignedUploadUrl(
+  bucket: string,
+  path: string
+): Promise<SupabaseSignedUploadUrlResult> {
+  const { url, key } = requireConfig();
+
+  const response = await fetch(`${url}/storage/v1/object/upload/sign/${bucket}/${path}`, {
+    method: "POST",
+    headers: {
+      apikey: key,
+      Authorization: `Bearer ${key}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({}),
+    cache: "no-store",
+  });
+
+  if (!response.ok) {
+    const message = await response.text().catch(() => "");
+    return { ok: false, status: response.status, message };
+  }
+
+  const data = (await response.json()) as { url: string };
+  return { ok: true, url: `${url}/storage/v1${data.url}` };
 }
 
 export async function supabaseMoveFile(

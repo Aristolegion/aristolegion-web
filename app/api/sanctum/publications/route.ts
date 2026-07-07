@@ -1,20 +1,22 @@
 import { cookies } from "next/headers";
 import { SANCTUM_SESSION_COOKIE, isValidSessionToken } from "@/lib/sanctum/auth";
-import {
-  PUBLICATIONS_BUCKET,
-  buildCoverPath,
-  buildPdfPath,
-  getImageExtension,
-  isImageFile,
-  isPdfFile,
-} from "@/lib/sanctum/publicationStorage";
-import { supabaseInsertReturning, supabaseUploadFile } from "@/lib/supabase";
+import { SLUG_PATTERN, isExpectedCoverPath, isExpectedPdfPath } from "@/lib/sanctum/publicationStorage";
+import { supabaseInsertReturning } from "@/lib/supabase";
 import type { Publication, PublicationStatus } from "@/lib/sanctum/types";
 
 const VALID_STATUSES: PublicationStatus[] = ["draft", "published"];
-const SLUG_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 
-function isNonEmptyString(value: FormDataEntryValue | null): value is string {
+interface CreatePublicationBody {
+  title?: unknown;
+  slug?: unknown;
+  category?: unknown;
+  description?: unknown;
+  status?: unknown;
+  pdfPath?: unknown;
+  coverPath?: unknown;
+}
+
+function isNonEmptyString(value: unknown): value is string {
   return typeof value === "string" && value.trim().length > 0;
 }
 
@@ -26,20 +28,14 @@ export async function POST(request: Request) {
     return Response.json({ success: false, error: "Unauthorized." }, { status: 401 });
   }
 
-  let formData: FormData;
+  let body: CreatePublicationBody;
   try {
-    formData = await request.formData();
+    body = await request.json();
   } catch {
     return Response.json({ success: false, error: "Invalid request." }, { status: 400 });
   }
 
-  const title = formData.get("title");
-  const slug = formData.get("slug");
-  const category = formData.get("category");
-  const description = formData.get("description");
-  const status = formData.get("status");
-  const pdf = formData.get("pdf");
-  const cover = formData.get("cover");
+  const { title, slug, category, description, status, pdfPath, coverPath } = body;
 
   if (
     !isNonEmptyString(title) ||
@@ -64,38 +60,23 @@ export async function POST(request: Request) {
     return Response.json({ success: false, error: "Invalid status." }, { status: 400 });
   }
 
-  if (!isPdfFile(pdf)) {
-    return Response.json({ success: false, error: "A PDF file is required." }, { status: 400 });
+  const trimmedSlug = slug.trim();
+
+  if (!isNonEmptyString(pdfPath) || !isExpectedPdfPath(pdfPath, trimmedSlug)) {
+    return Response.json(
+      { success: false, error: "A PDF file is required." },
+      { status: 400 }
+    );
   }
 
-  if (!isImageFile(cover)) {
+  if (!isNonEmptyString(coverPath) || !isExpectedCoverPath(coverPath, trimmedSlug)) {
     return Response.json(
       { success: false, error: "A cover image (JPG, PNG, or WEBP) is required." },
       { status: 400 }
     );
   }
 
-  const trimmedSlug = slug.trim();
-  const pdfPath = buildPdfPath(trimmedSlug);
-  const coverPath = buildCoverPath(trimmedSlug, getImageExtension(cover));
-
   try {
-    const [pdfUpload, coverUpload] = await Promise.all([
-      supabaseUploadFile(PUBLICATIONS_BUCKET, pdfPath, pdf, "application/pdf"),
-      supabaseUploadFile(PUBLICATIONS_BUCKET, coverPath, cover, cover.type || "image/webp"),
-    ]);
-
-    if (!pdfUpload.ok || !coverUpload.ok) {
-      console.error("SANCTUM PUBLICATION UPLOAD ERROR:", {
-        pdf: pdfUpload.ok ? null : { status: pdfUpload.status, message: pdfUpload.message },
-        cover: coverUpload.ok ? null : { status: coverUpload.status, message: coverUpload.message },
-      });
-      return Response.json(
-        { success: false, error: "Unable to upload files. Please try again." },
-        { status: 500 }
-      );
-    }
-
     const id = crypto.randomUUID();
     const now = new Date().toISOString();
     const result = await supabaseInsertReturning<Publication>("publications", {

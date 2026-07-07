@@ -88,20 +88,43 @@ function convertImageToWebp(file: File, quality = 0.85): Promise<File> {
   });
 }
 
-function buildFormData(form: FormState, pdfFile: File | null, coverFile: File | null): FormData {
-  const formData = new FormData();
-  formData.set("title", form.title);
-  formData.set("slug", form.slug);
-  formData.set("category", form.category);
-  formData.set("description", form.description);
-  formData.set("status", form.status);
-  if (pdfFile) {
-    formData.set("pdf", pdfFile);
-  }
-  if (coverFile) {
-    formData.set("cover", coverFile);
-  }
-  return formData;
+interface UploadUrlResponse {
+  success: boolean;
+  error?: string;
+  pdf?: { path: string; uploadUrl: string };
+  cover?: { path: string; uploadUrl: string };
+}
+
+// Uploads go straight from the browser to Supabase Storage using a signed
+// URL minted by our API — the file body never passes through a Vercel
+// function, so large PDFs can't hit FUNCTION_PAYLOAD_TOO_LARGE.
+async function uploadFileToSignedUrl(uploadUrl: string, file: File): Promise<boolean> {
+  const response = await fetch(uploadUrl, {
+    method: "PUT",
+    headers: {
+      "Content-Type": file.type || "application/octet-stream",
+      "x-upsert": "true",
+    },
+    body: file,
+  });
+  return response.ok;
+}
+
+function buildMetadataBody(
+  form: FormState,
+  slug: string,
+  pdfPath: string | undefined,
+  coverPath: string | undefined
+) {
+  return {
+    title: form.title,
+    slug,
+    category: form.category,
+    description: form.description,
+    status: form.status,
+    ...(pdfPath ? { pdfPath } : {}),
+    ...(coverPath ? { coverPath } : {}),
+  };
 }
 
 export function PublicationsSection({ initialPublications }: PublicationsSectionProps) {
@@ -114,6 +137,7 @@ export function PublicationsSection({ initialPublications }: PublicationsSection
   const [convertingCover, setConvertingCover] = useState(false);
   const [slugTouched, setSlugTouched] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [progressMessage, setProgressMessage] = useState("");
   const [formError, setFormError] = useState("");
   const [togglingId, setTogglingId] = useState<string | null>(null);
   const [listError, setListError] = useState("");
@@ -205,13 +229,73 @@ export function PublicationsSection({ initialPublications }: PublicationsSection
     setSubmitting(true);
 
     try {
-      const formData = buildFormData(form, pdfFile, coverFile);
+      const trimmedSlug = form.slug.trim();
+      let pdfPath: string | undefined;
+      let coverPath: string | undefined;
+
+      if (pdfFile || coverFile) {
+        setProgressMessage(pdfFile ? "Uploading PDF…" : "Uploading cover…");
+
+        const urlResponse = await fetch("/api/sanctum/publications/upload-url", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            slug: trimmedSlug,
+            pdf: Boolean(pdfFile),
+            coverContentType: coverFile ? coverFile.type || "image/webp" : undefined,
+          }),
+        });
+
+        const urlData: UploadUrlResponse = await urlResponse.json();
+
+        if (!urlResponse.ok || !urlData.success) {
+          setFormError(urlData.error || "Unable to prepare the upload.");
+          return;
+        }
+
+        if (pdfFile) {
+          if (!urlData.pdf) {
+            setFormError("Unable to prepare the PDF upload.");
+            return;
+          }
+          setProgressMessage("Uploading PDF…");
+          const uploaded = await uploadFileToSignedUrl(urlData.pdf.uploadUrl, pdfFile);
+          if (!uploaded) {
+            setFormError("Unable to upload the PDF. Please try again.");
+            return;
+          }
+          pdfPath = urlData.pdf.path;
+        }
+
+        if (coverFile) {
+          if (!urlData.cover) {
+            setFormError("Unable to prepare the cover upload.");
+            return;
+          }
+          setProgressMessage("Uploading cover…");
+          const uploaded = await uploadFileToSignedUrl(urlData.cover.uploadUrl, coverFile);
+          if (!uploaded) {
+            setFormError("Unable to upload the cover image. Please try again.");
+            return;
+          }
+          coverPath = urlData.cover.path;
+        }
+      }
+
+      setProgressMessage("Saving publication…");
+
+      const metadataBody = buildMetadataBody(form, trimmedSlug, pdfPath, coverPath);
       const response =
         modalMode === "create"
-          ? await fetch("/api/sanctum/publications", { method: "POST", body: formData })
+          ? await fetch("/api/sanctum/publications", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(metadataBody),
+            })
           : await fetch(`/api/sanctum/publications/${editingId}`, {
               method: "PATCH",
-              body: formData,
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(metadataBody),
             });
 
       const data = await response.json();
@@ -243,6 +327,7 @@ export function PublicationsSection({ initialPublications }: PublicationsSection
       setFormError("Something went wrong. Please check your connection.");
     } finally {
       setSubmitting(false);
+      setProgressMessage("");
     }
   }
 
@@ -251,17 +336,18 @@ export function PublicationsSection({ initialPublications }: PublicationsSection
     setListError("");
 
     const nextStatus = publication.status === "published" ? "draft" : "published";
-    const formData = new FormData();
-    formData.set("title", publication.title);
-    formData.set("slug", publication.slug);
-    formData.set("category", publication.category);
-    formData.set("description", publication.description);
-    formData.set("status", nextStatus);
 
     try {
       const response = await fetch(`/api/sanctum/publications/${publication.id}`, {
         method: "PATCH",
-        body: formData,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title: publication.title,
+          slug: publication.slug,
+          category: publication.category,
+          description: publication.description,
+          status: nextStatus,
+        }),
       });
 
       const data = await response.json();
@@ -614,7 +700,7 @@ export function PublicationsSection({ initialPublications }: PublicationsSection
 
               <div className="flex gap-3 border-t border-gold-muted/30 pt-6">
                 <Button type="submit" variant="primary" disabled={submitting || convertingCover}>
-                  {submitting ? "Saving…" : "Save Publication"}
+                  {submitting ? progressMessage || "Saving…" : "Save Publication"}
                 </Button>
                 <Button type="button" variant="ghost" onClick={closeModal}>
                   Cancel

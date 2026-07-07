@@ -1,5 +1,7 @@
 export const PUBLICATIONS_BUCKET = "publications";
 
+export const SLUG_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
+
 const IMAGE_EXTENSIONS: Record<string, string> = {
   "image/jpeg": "jpg",
   "image/jpg": "jpg",
@@ -25,6 +27,17 @@ export function getImageExtension(file: File): string {
   return match[1] === "jpeg" ? "jpg" : match[1];
 }
 
+// Used by the direct-to-storage upload flow, where the browser describes a
+// file by its MIME type in a JSON request rather than handing over the File
+// itself (which never passes through our API routes at all).
+export function getImageExtensionFromContentType(contentType: string): string | null {
+  return IMAGE_EXTENSIONS[contentType] ?? null;
+}
+
+export function isPdfContentType(contentType: string): boolean {
+  return contentType === "application/pdf";
+}
+
 export function getExtensionFromPath(path: string): string {
   const match = path.toLowerCase().match(/\.([a-z0-9]+)$/);
   return match ? match[1] : "webp";
@@ -40,4 +53,17 @@ export function buildCoverPath(slug: string, extension: string): string {
 
 export function buildEssayCoverPath(slug: string, extension: string): string {
   return `essay-covers/${slug}-cover.${extension}`;
+}
+
+// The client only ever hands back a storage path it was itself just given a
+// signed upload URL for, but we re-derive and compare rather than trust it
+// outright — so a tampered request can't point a publication row at some
+// other object already sitting in the private bucket.
+export function isExpectedPdfPath(path: string, slug: string): boolean {
+  return path === buildPdfPath(slug);
+}
+
+export function isExpectedCoverPath(path: string, slug: string): boolean {
+  const extension = getExtensionFromPath(path);
+  return Object.values(IMAGE_EXTENSIONS).includes(extension) && path === buildCoverPath(slug, extension);
 }
