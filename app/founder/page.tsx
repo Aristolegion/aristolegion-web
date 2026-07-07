@@ -3,6 +3,7 @@ import Image from "next/image";
 import { Container } from "@/components/layout/Container";
 import { PageShell } from "@/components/layout/PageShell";
 import { Section } from "@/components/layout/Section";
+import { LinkedInProfileCard } from "@/components/LinkedInProfileCard";
 import { ReadingSection } from "@/components/publication/ReadingSection";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
@@ -54,6 +55,9 @@ export default function FounderPage() {
               <p className="mt-6 max-w-xl font-body text-lg leading-relaxed text-ivory-muted">
                 {founder.bio}
               </p>
+              <div className="mt-10">
+                <LinkedInProfileCard />
+              </div>
             </div>
           </div>
         </Container>
