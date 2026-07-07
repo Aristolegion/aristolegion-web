@@ -55,7 +55,7 @@ export async function LatestIntelligence() {
       <Container>
         <SectionHeading
           eyebrow="Latest From Aristolegion"
-          title="Fresh From the House"
+          title="Latest Intelligence"
           description="The newest intelligence publications, essays, and dispatches — published directly from the Sanctum."
           tone="navy"
         />

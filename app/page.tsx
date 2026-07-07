@@ -1,4 +1,5 @@
 import { PageShell } from "@/components/layout/PageShell";
+import { DomainsOfExploration } from "@/components/home/DomainsOfExploration";
 import { InProgress } from "@/components/home/InProgress";
 import { FeaturedEssays } from "@/components/home/FeaturedEssays";
 import { FounderPreview } from "@/components/home/FounderPreview";
@@ -8,6 +9,7 @@ import { LatestIntelligence } from "@/components/home/LatestIntelligence";
 import { Library } from "@/components/home/Library";
 import { ManifestoPreview } from "@/components/home/ManifestoPreview";
 import { Newsletter } from "@/components/home/Newsletter";
+import { SixPillars } from "@/components/home/SixPillars";
 
 export const dynamic = "force-dynamic";
 
@@ -16,6 +18,8 @@ export default function Home() {
     <PageShell>
       <Hero />
       <ManifestoPreview />
+      <SixPillars />
+      <DomainsOfExploration />
       <Library />
       <InProgress />
       <FeaturedEssays />

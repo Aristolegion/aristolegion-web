@@ -17,7 +17,7 @@ export function InnerCircleInvitation() {
           />
           <div className="mt-8">
             <Button href="/inner-circle" variant="primary">
-              Explore the Inner Circle
+              Request Consideration
             </Button>
           </div>
         </Card>

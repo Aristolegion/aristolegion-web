@@ -1,10 +1,10 @@
-import { publications } from "./library";
 import type {
+  Domain,
   FooterColumn,
   Founder,
   InProgressItem,
-  LibraryItem,
   NavLink,
+  Pillar,
   SiteMeta,
 } from "./types";
 
@@ -28,40 +28,94 @@ export const navLinks: NavLink[] = [
   { label: "Newsletter", href: "/#newsletter" },
 ];
 
-export const libraryItems: LibraryItem[] = publications.map((publication) => ({
-  id: publication.slug,
-  title: publication.title,
-  description: publication.excerpt,
-  href: `/library/${publication.slug}`,
-  image: publication.coverImage,
-  category: publication.category,
-}));
-
 export const inProgressItems: InProgressItem[] = [
   {
     id: "capability-dividend",
     title: "Capability Dividend™",
     description:
-      "A framework for measuring and compounding human capability over time.",
+      "A longitudinal framework studying how human capability compounds beyond credentials and skills.",
   },
   {
     id: "inner-circle-founding",
     title: "Inner Circle Founding Cohort",
     description:
-      "The inaugural application-based cohort cultivating judgment and excellence.",
+      "A selective learning community exploring judgment, leadership, and capability development.",
   },
   {
     id: "future-research",
     title: "Future Research Publications",
     description:
-      "Forthcoming studies on authority, resilience, and institutional judgment.",
+      "Upcoming studies examining intelligence, institutions, and human performance.",
+  },
+];
+
+export const pillars: Pillar[] = [
+  {
+    number: "01",
+    title: "Judgment",
+    description: "Decision-making beyond information.",
+  },
+  {
+    number: "02",
+    title: "Capability",
+    description: "The ability to convert knowledge into meaningful impact.",
+  },
+  {
+    number: "03",
+    title: "Character",
+    description: "Strength and consistency under uncertainty.",
+  },
+  {
+    number: "04",
+    title: "Learning",
+    description: "The continuous evolution of intelligence.",
+  },
+  {
+    number: "05",
+    title: "Wisdom",
+    description: "Experience transformed into understanding.",
+  },
+  {
+    number: "06",
+    title: "Human Excellence",
+    description: "The pursuit of higher standards.",
+  },
+];
+
+export const domains: Domain[] = [
+  {
+    number: "01",
+    title: "Human Capability",
+    description:
+      "How individuals build enduring advantage beyond skills and credentials.",
+  },
+  {
+    number: "02",
+    title: "Leadership Intelligence",
+    description:
+      "How judgment, responsibility, and decision-making create meaningful impact.",
+  },
+  {
+    number: "03",
+    title: "Future of Work",
+    description:
+      "How careers, organizations, and talent systems evolve in an age of acceleration.",
+  },
+  {
+    number: "04",
+    title: "Human Systems",
+    description: "How environments, structures, and cultures shape performance.",
   },
 ];
 
 export const founder: Founder = {
   name: "Uday Anshuman",
   title: "Founder, Aristolegion",
-  bio: "Uday Anshuman founded Aristolegion to build the research, publications, and frameworks that cultivate judgment, capability, and human excellence in an age of accelerating change.",
+  bio: "Uday Anshuman founded Aristolegion from his work across talent systems, learning, and capability development. His work explores how individuals and institutions adapt in an era where knowledge is abundant but judgment remains scarce.",
+  bioParagraphs: [
+    "Uday Anshuman founded Aristolegion from his work across talent systems, learning, and capability development.",
+    "His work explores how individuals and institutions adapt in an era where knowledge is abundant but judgment remains scarce.",
+  ],
   href: "/founder",
 };
 

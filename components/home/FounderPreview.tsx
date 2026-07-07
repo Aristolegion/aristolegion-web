@@ -25,9 +25,11 @@ export function FounderPreview() {
             <p className="mt-2 font-body text-sm font-medium uppercase tracking-[0.1em] text-gold">
               {founder.title}
             </p>
-            <p className="mt-6 max-w-xl font-body text-base leading-relaxed text-charcoal/70">
-              {founder.bio}
-            </p>
+            <div className="mt-6 max-w-xl space-y-4 font-body text-base leading-relaxed text-charcoal/70">
+              {founder.bioParagraphs.map((paragraph) => (
+                <p key={paragraph}>{paragraph}</p>
+              ))}
+            </div>
             <div className="mt-6">
               <Link
                 href={founder.href}

@@ -12,7 +12,7 @@ export function FeaturedEssays() {
       <Container>
         <SectionHeading
           eyebrow="From the House"
-          title="Featured Essays"
+          title="From the Archive"
           description="Ongoing essays developing Aristolegion's intellectual voice — on judgment, capability, leadership, and the future of work."
           tone="navy"
         />

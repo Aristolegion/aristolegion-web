@@ -29,8 +29,8 @@ export function Hero() {
             <Button href="#library" variant="primary">
               Explore the Library
             </Button>
-            <Button href="/inner-circle" variant="secondary">
-              Apply to the Inner Circle
+            <Button href="/manifesto" variant="secondary">
+              Read the Manifesto
             </Button>
           </div>
         </div>
