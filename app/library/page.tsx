@@ -9,6 +9,7 @@ import { Eyebrow } from "@/components/ui/Eyebrow";
 import { SectionHeading } from "@/components/ui/SectionHeading";
 import { essays } from "@/lib/content/essays";
 import { frameworks, publications as staticPublications } from "@/lib/content/library";
+import { getPublicationDisplayCategory } from "@/lib/content/publicationEnhancements";
 import { supabaseCreateSignedUrl, supabaseSelect } from "@/lib/supabase";
 import type { Publication as HostedPublication } from "@/lib/sanctum/types";
 
@@ -57,20 +58,17 @@ interface FeaturedIntelligenceItem {
 const FEATURED_INTELLIGENCE_SLOTS: {
   match: (title: string) => boolean;
   title: string;
-  category: string;
   description: string;
 }[] = [
   {
     match: (title) => title.includes("capability dividend"),
     title: "Capability Dividend™",
-    category: "Executive Intelligence Journal",
     description:
       "Why capability has become the last remaining competitive advantage in the age of accelerating technology.",
   },
   {
     match: (title) => title.includes("employability fracture"),
     title: "Aristolegion Intelligence Journal — Employability Fracture",
-    category: "Research Publication",
     description:
       "Deconstructing changing talent realities and the imperative for judgment-driven leadership.",
   },
@@ -119,7 +117,7 @@ async function getFeaturedIntelligence(): Promise<FeaturedIntelligenceItem[]> {
     featured.push({
       slug: match.slug,
       title: slot.title,
-      category: slot.category,
+      category: getPublicationDisplayCategory(match.title, match.category),
       description: slot.description,
       coverImage: coverUrl?.ok ? coverUrl.url : null,
     });

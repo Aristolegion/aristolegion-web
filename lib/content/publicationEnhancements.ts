@@ -2,6 +2,8 @@ import type { PublicationFrameworkPreview, PublicationInsight } from "./types";
 
 export interface PublicationEnhancement {
   match: (title: string) => boolean;
+  /** Overrides the raw Sanctum category for display — see getPublicationDisplayCategory. */
+  displayCategory?: string;
   intelligenceBrief?: string[];
   centralQuestion?: string;
   keyInsights?: PublicationInsight[];
@@ -18,6 +20,7 @@ export interface PublicationEnhancement {
 export const publicationEnhancements: PublicationEnhancement[] = [
   {
     match: (title) => title.includes("capability dividend"),
+    displayCategory: "Intelligence Journal",
     intelligenceBrief: [
       "Knowledge is becoming abundant.",
       "Skills are becoming temporary.",
@@ -46,6 +49,7 @@ export const publicationEnhancements: PublicationEnhancement[] = [
   },
   {
     match: (title) => title.includes("employability fracture"),
+    displayCategory: "Intelligence Journal",
     intelligenceBrief: [
       "Credentials once served as a reliable proxy for capability.",
       "That signal is breaking down.",
@@ -67,10 +71,22 @@ export const publicationEnhancements: PublicationEnhancement[] = [
         description: "The future rewards demonstrated capability.",
       },
     ],
+    framework: {
+      title: "The Employability Fracture Model™",
+      steps: ["Credentials", "Skills", "Adaptability", "Judgment", "Capability"],
+    },
   },
 ];
 
 export function getPublicationEnhancement(title: string): PublicationEnhancement | undefined {
   const lowerTitle = title.toLowerCase();
   return publicationEnhancements.find((entry) => entry.match(lowerTitle));
+}
+
+// Single source of truth for the publication category shown across Library
+// cards, the publication detail hero, and Related Intelligence — falls back
+// to the raw Sanctum/static category when no override is curated, so this
+// is safe to call for every publication, not just the two with overrides.
+export function getPublicationDisplayCategory(title: string, rawCategory: string): string {
+  return getPublicationEnhancement(title)?.displayCategory ?? rawCategory;
 }
