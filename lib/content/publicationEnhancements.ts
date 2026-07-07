@@ -46,6 +46,11 @@ export const publicationEnhancements: PublicationEnhancement[] = [
   },
   {
     match: (title) => title.includes("employability fracture"),
+    intelligenceBrief: [
+      "Credentials once served as a reliable proxy for capability.",
+      "That signal is breaking down.",
+      "The individuals and organizations who thrive next will be the ones who can demonstrate capability directly, not merely claim it.",
+    ],
     centralQuestion:
       "When traditional qualifications lose predictive power, what defines true employability?",
     keyInsights: [
