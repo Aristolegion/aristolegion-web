@@ -15,7 +15,7 @@ export function SiteFooter() {
           <div className="lg:col-span-1">
             <Link href="/" className="flex items-center gap-3 text-ivory">
               <Image
-                src="/images/crest.svg"
+                src="/images/crest-transparent.png"
                 alt=""
                 width={32}
                 height={32}
