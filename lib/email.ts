@@ -45,3 +45,16 @@ export async function sendAdminNotificationEmail(
 
   return { ok: true };
 }
+
+export async function sendNewsletterNotification(email: string): Promise<SendEmailResult> {
+  return sendAdminNotificationEmail(
+    "New Newsletter Subscriber — Aristolegion",
+    `New subscriber joined Aristolegion.
+
+Email:
+${email}
+
+View subscribers:
+https://www.aristolegion.com/sanctum`
+  );
+}

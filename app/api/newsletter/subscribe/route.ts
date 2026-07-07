@@ -1,3 +1,4 @@
+import { sendNewsletterNotification } from "@/lib/email";
 import { supabaseInsert } from "@/lib/supabase";
 
 interface SubscribePayload {
@@ -88,6 +89,21 @@ export async function POST(request: Request) {
       },
       { status: 502 }
     );
+  }
+
+  // Best-effort notification only — a failed send must never fail the
+  // subscription itself, which is already safely stored in Supabase.
+  try {
+    const emailResult = await sendNewsletterNotification(email.trim().toLowerCase());
+
+    if (!emailResult.ok) {
+      console.error("NEWSLETTER EMAIL ERROR:", {
+        status: emailResult.status,
+        message: emailResult.message,
+      });
+    }
+  } catch (error) {
+    console.error("NEWSLETTER EMAIL ERROR:", error);
   }
 
   return Response.json({ success: true });
