@@ -1,12 +1,15 @@
 import type { Metadata } from "next";
 import { cookies } from "next/headers";
 import { notFound } from "next/navigation";
-import { HostedPublicationLayout } from "@/components/publication/HostedPublicationLayout";
-import { PublicationLayout } from "@/components/publication/PublicationLayout";
+import {
+  PublicationTemplate,
+  type PublicationTemplateData,
+} from "@/components/publication/PublicationTemplate";
 import { getPublication, publications } from "@/lib/content/library";
 import { SANCTUM_SESSION_COOKIE, isValidSessionToken } from "@/lib/sanctum/auth";
 import { supabaseCreateSignedUrl, supabaseSelect } from "@/lib/supabase";
 import type { Publication as HostedPublication } from "@/lib/sanctum/types";
+import type { Publication as StaticPublication } from "@/lib/content/types";
 
 const PUBLICATIONS_BUCKET = "publications";
 const VIEWER_URL_TTL_SECONDS = 60 * 60; // 1 hour, regenerated on every request
@@ -115,6 +118,56 @@ export async function generateMetadata({
   };
 }
 
+function toTemplateDataFromStatic(publication: StaticPublication): PublicationTemplateData {
+  return {
+    slug: publication.slug,
+    category: publication.category,
+    title: publication.title,
+    description: publication.subtitle,
+    fallbackSource: publication.excerpt,
+    year: new Date(publication.publishDate).getFullYear().toString(),
+    author: publication.author,
+    readingTime: publication.readingTime,
+    coverSrc: publication.coverImage,
+    coverIsExternal: false,
+    readingSections: publication.sections,
+    primaryAction: publication.externalLinks?.primary
+      ? {
+          label: publication.externalLinks.primary.label,
+          href: publication.externalLinks.primary.url,
+          external: true,
+        }
+      : undefined,
+  };
+}
+
+function toTemplateDataFromHosted(
+  hosted: HostedPublication,
+  coverUrl: string | null,
+  pdfPreviewUrl: string | null,
+  pdfDownloadUrl: string | null,
+  isDraftPreview: boolean
+): PublicationTemplateData {
+  const dateSource = hosted.published_at ?? hosted.created_at;
+
+  return {
+    slug: hosted.slug,
+    category: hosted.category,
+    title: hosted.title,
+    description: hosted.description,
+    year: dateSource ? new Date(dateSource).getFullYear().toString() : null,
+    coverSrc: coverUrl,
+    coverIsExternal: true,
+    isDraftPreview,
+    primaryAction: pdfPreviewUrl
+      ? { label: "Read Publication", href: pdfPreviewUrl, external: true }
+      : undefined,
+    secondaryAction: pdfDownloadUrl
+      ? { label: "Download PDF", href: pdfDownloadUrl, external: true }
+      : undefined,
+  };
+}
+
 export default async function PublicationPage({
   params,
   searchParams,
@@ -124,7 +177,7 @@ export default async function PublicationPage({
   const publication = getPublication(slug);
 
   if (publication) {
-    return <PublicationLayout publication={publication} />;
+    return <PublicationTemplate data={toTemplateDataFromStatic(publication)} />;
   }
 
   const allowDraft = preview === "true" && (await hasSanctumSession());
@@ -193,12 +246,8 @@ export default async function PublicationPage({
   }
 
   return (
-    <HostedPublicationLayout
-      publication={hosted}
-      pdfPreviewUrl={pdfPreviewUrl}
-      pdfDownloadUrl={pdfDownloadUrl}
-      coverUrl={coverUrl}
-      isDraftPreview={isDraftPreview}
+    <PublicationTemplate
+      data={toTemplateDataFromHosted(hosted, coverUrl, pdfPreviewUrl, pdfDownloadUrl, isDraftPreview)}
     />
   );
 }

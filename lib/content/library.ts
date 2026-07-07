@@ -69,12 +69,3 @@ export const frameworks: Framework[] = [
 export function getPublication(slug: string): Publication | undefined {
   return publications.find((publication) => publication.slug === slug);
 }
-
-export function getRelatedPublications(
-  slug: string,
-  limit = 3
-): Publication[] {
-  return publications
-    .filter((publication) => publication.slug !== slug)
-    .slice(0, limit);
-}
