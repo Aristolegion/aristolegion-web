@@ -2,6 +2,12 @@
 
 import Script from "next/script";
 
+declare global {
+  interface Window {
+    LI?: { ProfileBadge?: { init?: () => void } };
+  }
+}
+
 // LinkedIn's official embeddable profile badge. The widget script scans the
 // page for a .LI-profile-badge element on load and replaces its contents —
 // the markup below is LinkedIn's required structure, not decorative. Using
@@ -10,6 +16,13 @@ import Script from "next/script";
 // gets stripped or re-runs on every client navigation, and lazyOnload
 // matches the original tag's async+defer intent — the badge is
 // below-the-fold and shouldn't compete with anything else on the page.
+//
+// lazyOnload can fire after React has already hydrated the badge markup,
+// which the LinkedIn script only scans for once on its own load — if it
+// runs before the div is in the DOM (or has already run once for another
+// instance), the badge silently never initializes. onLoad re-triggers
+// LinkedIn's own init explicitly once the script is confirmed loaded, and
+// next/script dedupes by src so this never results in a second script tag.
 export function LinkedInBadge() {
   return (
     <>
@@ -29,7 +42,14 @@ export function LinkedInBadge() {
           Uday Anshuman
         </a>
       </div>
-      <Script src="https://platform.linkedin.com/badges/js/profile.js" strategy="lazyOnload" />
+      <Script
+        id="linkedin-badge-script"
+        src="https://platform.linkedin.com/badges/js/profile.js"
+        strategy="lazyOnload"
+        onLoad={() => {
+          window.LI?.ProfileBadge?.init?.();
+        }}
+      />
     </>
   );
 }
