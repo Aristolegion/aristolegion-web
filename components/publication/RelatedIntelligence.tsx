@@ -4,6 +4,7 @@ import { Card } from "@/components/ui/Card";
 import { Eyebrow } from "@/components/ui/Eyebrow";
 import { essays as staticEssays } from "@/lib/content/essays";
 import { publications as staticPublications } from "@/lib/content/library";
+import { getPublicationDisplayCategory } from "@/lib/content/publicationEnhancements";
 import { supabaseSelect } from "@/lib/supabase";
 import type { Essay as HostedEssay, Publication as HostedPublication } from "@/lib/sanctum/types";
 
@@ -42,7 +43,7 @@ export async function RelatedIntelligence({ currentSlug }: RelatedIntelligencePr
         items.push({
           key: `publication-${publication.id}`,
           href: `/library/${publication.slug}`,
-          category: publication.category,
+          category: getPublicationDisplayCategory(publication.title, publication.category),
           title: publication.title,
           excerpt: publication.description,
           date: publication.published_at ?? publication.created_at,
@@ -64,7 +65,7 @@ export async function RelatedIntelligence({ currentSlug }: RelatedIntelligencePr
     items.push({
       key: `publication-${publication.slug}`,
       href: `/library/${publication.slug}`,
-      category: publication.category,
+      category: getPublicationDisplayCategory(publication.title, publication.category),
       title: publication.title,
       excerpt: publication.excerpt,
       date: publication.publishDate,

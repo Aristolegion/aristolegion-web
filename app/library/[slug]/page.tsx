@@ -6,6 +6,7 @@ import {
   type PublicationTemplateData,
 } from "@/components/publication/PublicationTemplate";
 import { getPublication, publications } from "@/lib/content/library";
+import { getPublicationDisplayCategory } from "@/lib/content/publicationEnhancements";
 import { SANCTUM_SESSION_COOKIE, isValidSessionToken } from "@/lib/sanctum/auth";
 import { supabaseCreateSignedUrl, supabaseSelect } from "@/lib/supabase";
 import type { Publication as HostedPublication } from "@/lib/sanctum/types";
@@ -121,7 +122,7 @@ export async function generateMetadata({
 function toTemplateDataFromStatic(publication: StaticPublication): PublicationTemplateData {
   return {
     slug: publication.slug,
-    category: publication.category,
+    category: getPublicationDisplayCategory(publication.title, publication.category),
     title: publication.title,
     description: publication.subtitle,
     fallbackSource: publication.excerpt,
@@ -152,7 +153,7 @@ function toTemplateDataFromHosted(
 
   return {
     slug: hosted.slug,
-    category: hosted.category,
+    category: getPublicationDisplayCategory(hosted.title, hosted.category),
     title: hosted.title,
     description: hosted.description,
     year: dateSource ? new Date(dateSource).getFullYear().toString() : null,
