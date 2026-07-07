@@ -2,6 +2,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { Container } from "@/components/layout/Container";
 import { Section } from "@/components/layout/Section";
+import { LinkedInBadge } from "@/components/LinkedInBadge";
 import { SectionHeading } from "@/components/ui/SectionHeading";
 import { founder } from "@/lib/content/homepage";
 
@@ -34,6 +35,9 @@ export function FounderPreview() {
               >
                 Read the Founder&apos;s Story →
               </Link>
+            </div>
+            <div className="mt-10">
+              <LinkedInBadge />
             </div>
           </div>
         </div>
