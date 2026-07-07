@@ -7,7 +7,8 @@ import { Card } from "@/components/ui/Card";
 import { Divider } from "@/components/ui/Divider";
 import { Eyebrow } from "@/components/ui/Eyebrow";
 import { SectionHeading } from "@/components/ui/SectionHeading";
-import { publications as staticPublications } from "@/lib/content/library";
+import { essays } from "@/lib/content/essays";
+import { frameworks, publications as staticPublications } from "@/lib/content/library";
 import { supabaseCreateSignedUrl, supabaseSelect } from "@/lib/supabase";
 import type { Publication as HostedPublication } from "@/lib/sanctum/types";
 
@@ -32,74 +33,110 @@ export const metadata: Metadata = {
 
 export const dynamic = "force-dynamic";
 
-interface LibraryCardItem {
+const CATEGORY_LINKS = [
+  { label: "All", href: "#library-hero" },
+  { label: "Intelligence Journals", href: "#featured-intelligence" },
+  { label: "Frameworks", href: "#frameworks" },
+  { label: "Essays", href: "#essays-briefings" },
+  { label: "Books", href: "#books" },
+];
+
+interface FeaturedIntelligenceItem {
   slug: string;
   title: string;
   category: string;
-  excerpt: string;
+  description: string;
   coverImage: string | null;
-  sortDate: string;
-  isHosted: boolean;
 }
 
-export default async function LibraryPage() {
-  let hostedItems: LibraryCardItem[] = [];
+// Research-first hierarchy per the content architecture review — a fixed,
+// curated pair rather than the full date-sorted publication list. Matches
+// hosted Sanctum publications by title; title/category/description here are
+// the reviewed page copy, independent of whatever the live record says, so
+// a hosted publication is only used as a slug + cover lookup.
+const FEATURED_INTELLIGENCE_SLOTS: {
+  match: (title: string) => boolean;
+  title: string;
+  category: string;
+  description: string;
+}[] = [
+  {
+    match: (title) => title.includes("capability dividend"),
+    title: "Capability Dividend™",
+    category: "Executive Intelligence Journal",
+    description:
+      "Why capability has become the last remaining competitive advantage in the age of accelerating technology.",
+  },
+  {
+    match: (title) => title.includes("employability fracture"),
+    title: "Aristolegion Intelligence Journal — Employability Fracture",
+    category: "Research Publication",
+    description:
+      "Deconstructing changing talent realities and the imperative for judgment-driven leadership.",
+  },
+];
+
+async function getFeaturedIntelligence(): Promise<FeaturedIntelligenceItem[]> {
+  let hostedPublications: HostedPublication[] = [];
 
   try {
-    const hostedResult = await supabaseSelect<HostedPublication>("publications", {
-      order: "published_at.desc",
+    const result = await supabaseSelect<HostedPublication>("publications", {
       filter: { status: "eq.published" },
     });
 
-    if (hostedResult.ok) {
-      hostedItems = await Promise.all(
-        hostedResult.data.map(async (publication) => {
-          const coverUrl = publication.cover_image_url
-            ? await supabaseCreateSignedUrl(
-                PUBLICATIONS_BUCKET,
-                publication.cover_image_url,
-                COVER_URL_TTL_SECONDS
-              )
-            : null;
-
-          return {
-            slug: publication.slug,
-            title: publication.title,
-            category: publication.category,
-            excerpt: publication.description,
-            coverImage: coverUrl?.ok ? coverUrl.url : null,
-            sortDate: publication.published_at ?? publication.created_at,
-            isHosted: true,
-          };
-        })
-      );
+    if (result.ok) {
+      hostedPublications = result.data;
     } else {
-      console.error("LIBRARY PUBLICATIONS FETCH ERROR:", {
-        status: hostedResult.status,
-        message: hostedResult.message,
+      console.error("LIBRARY FEATURED INTELLIGENCE FETCH ERROR:", {
+        status: result.status,
+        message: result.message,
       });
     }
   } catch (error) {
-    console.error("LIBRARY PUBLICATIONS FETCH ERROR:", error);
+    console.error("LIBRARY FEATURED INTELLIGENCE FETCH ERROR:", error);
   }
 
-  const staticItems: LibraryCardItem[] = staticPublications.map((publication) => ({
-    slug: publication.slug,
-    title: publication.title,
-    category: publication.category,
-    excerpt: publication.excerpt,
-    coverImage: publication.coverImage,
-    sortDate: publication.publishDate,
-    isHosted: false,
-  }));
+  const usedIds = new Set<string>();
+  const featured: FeaturedIntelligenceItem[] = [];
 
-  const items = [...hostedItems, ...staticItems].sort(
-    (a, b) => new Date(b.sortDate).getTime() - new Date(a.sortDate).getTime()
+  for (const slot of FEATURED_INTELLIGENCE_SLOTS) {
+    const match = hostedPublications.find(
+      (publication) =>
+        !usedIds.has(publication.id) && slot.match(publication.title.toLowerCase())
+    );
+
+    if (!match) continue;
+    usedIds.add(match.id);
+
+    const coverUrl = match.cover_image_url
+      ? await supabaseCreateSignedUrl(
+          PUBLICATIONS_BUCKET,
+          match.cover_image_url,
+          COVER_URL_TTL_SECONDS
+        )
+      : null;
+
+    featured.push({
+      slug: match.slug,
+      title: slot.title,
+      category: slot.category,
+      description: slot.description,
+      coverImage: coverUrl?.ok ? coverUrl.url : null,
+    });
+  }
+
+  return featured;
+}
+
+export default async function LibraryPage() {
+  const featuredIntelligence = await getFeaturedIntelligence();
+  const glassPartition = staticPublications.find(
+    (publication) => publication.slug === "the-glass-partition"
   );
 
   return (
     <PageShell>
-      <Section background="navy">
+      <Section id="library-hero" background="navy">
         <Container>
           <div className="mx-auto max-w-3xl text-center">
             <Eyebrow className="mb-6">The Library</Eyebrow>
@@ -108,29 +145,50 @@ export default async function LibraryPage() {
             </h1>
             <Divider className="mx-auto my-8 w-24" />
             <p className="font-body text-lg leading-relaxed text-ivory-muted">
-              A curated collection of research publications, executive
-              journals, essays, and intellectual works exploring capability,
-              judgment, authority, resilience, and human excellence.
+              The central archive of Aristolegion intelligence — housing
+              research publications, proprietary frameworks, essays, and
+              intellectual works exploring capability, judgment, leadership,
+              and the future of human systems.
             </p>
           </div>
         </Container>
       </Section>
 
-      <Section background="navy">
+      <div className="border-y border-gold-muted bg-navy">
+        <Container className="py-6">
+          <nav aria-label="Library categories">
+            <ul className="flex flex-wrap items-center justify-center gap-x-8 gap-y-3">
+              {CATEGORY_LINKS.map((link) => (
+                <li key={link.href}>
+                  <a
+                    href={link.href}
+                    className="font-body text-xs font-medium uppercase tracking-[0.15em] text-ivory-muted transition-colors duration-200 hover:text-gold"
+                  >
+                    {link.label}
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </nav>
+        </Container>
+      </div>
+
+      <Section id="featured-intelligence" background="navy">
         <Container>
           <SectionHeading
-            eyebrow="Current Publications"
-            title="The Central Publishing Hub"
+            eyebrow="Featured Intelligence"
+            title="Intelligence Archive"
+            description="Selected research publications and executive briefings from Aristolegion exploring the forces shaping individuals, organizations, and the future of work."
             tone="navy"
           />
 
-          <ul className="mt-12 grid gap-8 md:grid-cols-2 xl:grid-cols-3">
-            {items.map((item) => (
-              <li key={item.slug}>
-                <Card href={`/library/${item.slug}`} tone="navy">
-                  <div className="relative aspect-[3/4] overflow-hidden bg-charcoal">
-                    {item.coverImage ? (
-                      item.isHosted ? (
+          {featuredIntelligence.length > 0 && (
+            <ul className="mt-12 grid gap-8 md:grid-cols-2">
+              {featuredIntelligence.map((item) => (
+                <li key={item.slug}>
+                  <Card href={`/library/${item.slug}`} tone="navy">
+                    <div className="relative aspect-[3/4] overflow-hidden bg-charcoal">
+                      {item.coverImage ? (
                         // eslint-disable-next-line @next/next/no-img-element
                         <img
                           src={item.coverImage}
@@ -138,38 +196,134 @@ export default async function LibraryPage() {
                           className="absolute inset-0 h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
                         />
                       ) : (
-                        <Image
-                          src={item.coverImage}
-                          alt={item.title}
-                          fill
-                          className="object-cover transition-transform duration-500 group-hover:scale-105"
-                          sizes="(min-width: 1280px) 33vw, (min-width: 768px) 50vw, 100vw"
-                        />
-                      )
-                    ) : (
-                      <div className="absolute inset-0 flex items-center justify-center p-6 text-center">
-                        <Eyebrow>{item.category}</Eyebrow>
-                      </div>
-                    )}
-                  </div>
-                  <div className="p-6">
-                    <Eyebrow className="mb-2">{item.category}</Eyebrow>
-                    <h3 className="font-display text-xl font-semibold text-ivory">
-                      {item.title}
-                    </h3>
-                    <p className="mt-3 font-body text-sm leading-relaxed text-ivory-muted">
-                      {item.excerpt}
-                    </p>
-                    <span className="mt-4 inline-block font-body text-sm font-medium text-gold transition-colors duration-200 group-hover:text-ivory">
-                      Explore →
-                    </span>
-                  </div>
+                        <div className="absolute inset-0 flex items-center justify-center p-6 text-center">
+                          <Eyebrow>{item.category}</Eyebrow>
+                        </div>
+                      )}
+                    </div>
+                    <div className="p-6">
+                      <Eyebrow className="mb-2">{item.category}</Eyebrow>
+                      <h3 className="font-display text-xl font-semibold text-ivory">
+                        {item.title}
+                      </h3>
+                      <p className="mt-3 font-body text-sm leading-relaxed text-ivory-muted">
+                        {item.description}
+                      </p>
+                      <span className="mt-4 inline-block font-body text-sm font-medium text-gold transition-colors duration-200 group-hover:text-ivory">
+                        Explore →
+                      </span>
+                    </div>
+                  </Card>
+                </li>
+              ))}
+            </ul>
+          )}
+        </Container>
+      </Section>
+
+      <Section id="frameworks" background="ivory">
+        <Container>
+          <SectionHeading
+            eyebrow="Proprietary Frameworks"
+            title="Capability Systems"
+            description="Original Aristolegion models examining how capability, judgment, and human advantage compound over time."
+            tone="ivory"
+          />
+
+          <ul className="mt-12 grid gap-6 md:grid-cols-3">
+            {frameworks.map((framework) => (
+              <li key={framework.title}>
+                <Card tone="ivory" className="p-6">
+                  <p
+                    className={`font-body text-xs font-medium uppercase tracking-[0.15em] ${
+                      framework.status === "Published" ? "text-gold" : "text-charcoal/60"
+                    }`}
+                  >
+                    {framework.status}
+                  </p>
+                  <h3 className="mt-3 font-display text-lg font-semibold text-charcoal">
+                    {framework.title}
+                  </h3>
+                  <p className="mt-3 font-body text-sm leading-relaxed text-charcoal/70">
+                    {framework.description}
+                  </p>
                 </Card>
               </li>
             ))}
           </ul>
         </Container>
       </Section>
+
+      <Section id="essays-briefings" background="navy">
+        <Container>
+          <SectionHeading
+            eyebrow="Essays & Briefings"
+            title="Field Notes"
+            description="Short-form intelligence exploring leadership, work, learning, and human performance."
+            tone="navy"
+          />
+
+          <ul className="mt-12 grid gap-8 md:grid-cols-3">
+            {essays.map((essay) => (
+              <li key={essay.slug}>
+                <Card href={`/essays/${essay.slug}`} tone="navy" className="p-6">
+                  <Eyebrow className="mb-2">{essay.category}</Eyebrow>
+                  <h3 className="font-display text-lg font-semibold text-ivory">
+                    {essay.title}
+                  </h3>
+                  <p className="mt-3 font-body text-sm leading-relaxed text-ivory-muted">
+                    {essay.excerpt}
+                  </p>
+                  <span className="mt-4 inline-block font-body text-sm font-medium text-gold transition-colors duration-200 group-hover:text-ivory">
+                    Read More →
+                  </span>
+                </Card>
+              </li>
+            ))}
+          </ul>
+        </Container>
+      </Section>
+
+      {glassPartition && (
+        <Section id="books" background="ivory">
+          <Container>
+            <SectionHeading
+              eyebrow="Books From the House"
+              title="Long-form Works"
+              tone="ivory"
+            />
+
+            <ul className="mt-12 grid gap-8 sm:max-w-sm">
+              <li>
+                <Card href={`/library/${glassPartition.slug}`} tone="ivory">
+                  <div className="relative aspect-[3/4] overflow-hidden bg-charcoal">
+                    <Image
+                      src={glassPartition.coverImage}
+                      alt={glassPartition.title}
+                      fill
+                      className="object-cover transition-transform duration-500 group-hover:scale-105"
+                      sizes="(min-width: 640px) 384px, 100vw"
+                    />
+                  </div>
+                  <div className="p-6">
+                    <Eyebrow className="mb-2">Novel</Eyebrow>
+                    <h3 className="font-display text-xl font-semibold text-charcoal">
+                      {glassPartition.title}
+                    </h3>
+                    <p className="mt-3 font-body text-sm leading-relaxed text-charcoal/70">
+                      A philosophical exploration of invisible barriers,
+                      ambition, identity, and institutions.
+                    </p>
+                    <span className="mt-4 inline-block font-body text-sm font-medium text-gold transition-colors duration-200 group-hover:text-navy">
+                      Explore →
+                    </span>
+                  </div>
+                </Card>
+              </li>
+            </ul>
+          </Container>
+        </Section>
+      )}
     </PageShell>
   );
 }

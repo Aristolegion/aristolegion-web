@@ -23,6 +23,14 @@ export interface Domain {
   description: string;
 }
 
+export type FrameworkStatus = "Published" | "Research Development";
+
+export interface Framework {
+  title: string;
+  description: string;
+  status: FrameworkStatus;
+}
+
 export interface SiteMeta {
   name: string;
   motto: string;
