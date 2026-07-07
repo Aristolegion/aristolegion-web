@@ -1,4 +1,4 @@
-import type { Publication } from "./types";
+import type { Framework, Publication } from "./types";
 
 export const publications: Publication[] = [
   {
@@ -42,6 +42,27 @@ export const publications: Publication[] = [
         url: "https://www.amazon.in/dp/B0GSSMVXPX",
       },
     },
+  },
+];
+
+export const frameworks: Framework[] = [
+  {
+    title: "Capability Dividend™",
+    description:
+      "A framework exploring the transition from knowledge accumulation to capability creation.",
+    status: "Published",
+  },
+  {
+    title: "Capability Flywheel™",
+    description:
+      "How learning, judgment, execution, and reflection create compounding professional growth.",
+    status: "Research Development",
+  },
+  {
+    title: "Judgment Capital™",
+    description:
+      "Understanding judgment as a scarce advantage in an information-abundant world.",
+    status: "Research Development",
   },
 ];
 
