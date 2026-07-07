@@ -144,6 +144,8 @@ export function PublicationsSection({ initialPublications }: PublicationsSection
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [confirmSendId, setConfirmSendId] = useState<string | null>(null);
+  const [sendingId, setSendingId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!modalMode) return;
@@ -403,6 +405,36 @@ export function PublicationsSection({ initialPublications }: PublicationsSection
     }
   }
 
+  async function handleSendAnnouncement(id: string) {
+    setSendingId(id);
+    setListError("");
+
+    try {
+      const response = await fetch(`/api/sanctum/publications/${id}/send`, { method: "POST" });
+      const data = await response.json();
+
+      if (!response.ok || !data.success) {
+        setListError(data.error || "Unable to send this publication.");
+        return;
+      }
+
+      setPublications((prev) =>
+        prev.map((item) =>
+          item.id === id
+            ? { ...item, sent_at: data.publication.sent_at, sent_count: data.publication.sent_count }
+            : item
+        )
+      );
+      setConfirmSendId(null);
+    } catch {
+      setListError("Something went wrong. Please check your connection.");
+    } finally {
+      setSendingId(null);
+    }
+  }
+
+  const sendingPublication = publications.find((item) => item.id === confirmSendId) ?? null;
+
   return (
     <section className="mt-12">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -517,6 +549,16 @@ export function PublicationsSection({ initialPublications }: PublicationsSection
                           ? "Unpublish"
                           : "Publish"}
                     </button>
+                    {publication.status === "published" && (
+                      <button
+                        type="button"
+                        disabled={Boolean(publication.sent_at)}
+                        onClick={() => setConfirmSendId(publication.id)}
+                        className="font-body text-sm font-medium text-gold transition-colors duration-200 hover:text-ivory disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:text-gold"
+                      >
+                        {publication.sent_at ? "Announced ✓" : "Send Announcement"}
+                      </button>
+                    )}
                     <button
                       type="button"
                       onClick={() => setConfirmDeleteId(publication.id)}
@@ -718,6 +760,42 @@ export function PublicationsSection({ initialPublications }: PublicationsSection
           onCancel={() => setConfirmDeleteId(null)}
           onConfirm={() => handleDelete(confirmDeleteId)}
         />
+      )}
+
+      {sendingPublication && (
+        <div
+          className="fixed inset-0 z-[60] flex items-center justify-center bg-navy/80 p-4"
+          onClick={() => setConfirmSendId(null)}
+        >
+          <div
+            role="alertdialog"
+            aria-modal="true"
+            className="w-full max-w-sm border border-gold-muted bg-charcoal p-6 text-center"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <p className="font-body text-base text-ivory">
+              Send this to all newsletter subscribers?
+            </p>
+            <div className="mt-6 flex justify-center gap-3">
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={() => setConfirmSendId(null)}
+                disabled={sendingId === sendingPublication.id}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="button"
+                variant="primary"
+                disabled={sendingId === sendingPublication.id}
+                onClick={() => handleSendAnnouncement(sendingPublication.id)}
+              >
+                {sendingId === sendingPublication.id ? "Sending…" : "Send Announcement"}
+              </Button>
+            </div>
+          </div>
+        </div>
       )}
     </section>
   );

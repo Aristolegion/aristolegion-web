@@ -118,6 +118,8 @@ export function EssaysSection({ initialEssays }: EssaysSectionProps) {
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [confirmSendId, setConfirmSendId] = useState<string | null>(null);
+  const [sendingId, setSendingId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!modalMode) return;
@@ -293,6 +295,36 @@ export function EssaysSection({ initialEssays }: EssaysSectionProps) {
     }
   }
 
+  async function handleSendAnnouncement(id: string) {
+    setSendingId(id);
+    setListError("");
+
+    try {
+      const response = await fetch(`/api/sanctum/essays/${id}/send`, { method: "POST" });
+      const data = await response.json();
+
+      if (!response.ok || !data.success) {
+        setListError(data.error || "Unable to send this essay.");
+        return;
+      }
+
+      setEssays((prev) =>
+        prev.map((item) =>
+          item.id === id
+            ? { ...item, sent_at: data.essay.sent_at, sent_count: data.essay.sent_count }
+            : item
+        )
+      );
+      setConfirmSendId(null);
+    } catch {
+      setListError("Something went wrong. Please check your connection.");
+    } finally {
+      setSendingId(null);
+    }
+  }
+
+  const sendingEssay = essays.find((item) => item.id === confirmSendId) ?? null;
+
   return (
     <section className="mt-12">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -399,6 +431,16 @@ export function EssaysSection({ initialEssays }: EssaysSectionProps) {
                           ? "Unpublish"
                           : "Publish"}
                     </button>
+                    {essay.status === "published" && (
+                      <button
+                        type="button"
+                        disabled={Boolean(essay.sent_at)}
+                        onClick={() => setConfirmSendId(essay.id)}
+                        className="font-body text-sm font-medium text-gold transition-colors duration-200 hover:text-ivory disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:text-gold"
+                      >
+                        {essay.sent_at ? "Announced ✓" : "Send Announcement"}
+                      </button>
+                    )}
                     <button
                       type="button"
                       onClick={() => setConfirmDeleteId(essay.id)}
@@ -590,6 +632,42 @@ export function EssaysSection({ initialEssays }: EssaysSectionProps) {
           onCancel={() => setConfirmDeleteId(null)}
           onConfirm={() => handleDelete(confirmDeleteId)}
         />
+      )}
+
+      {sendingEssay && (
+        <div
+          className="fixed inset-0 z-[60] flex items-center justify-center bg-navy/80 p-4"
+          onClick={() => setConfirmSendId(null)}
+        >
+          <div
+            role="alertdialog"
+            aria-modal="true"
+            className="w-full max-w-sm border border-gold-muted bg-charcoal p-6 text-center"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <p className="font-body text-base text-ivory">
+              Send this to all newsletter subscribers?
+            </p>
+            <div className="mt-6 flex justify-center gap-3">
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={() => setConfirmSendId(null)}
+                disabled={sendingId === sendingEssay.id}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="button"
+                variant="primary"
+                disabled={sendingId === sendingEssay.id}
+                onClick={() => handleSendAnnouncement(sendingEssay.id)}
+              >
+                {sendingId === sendingEssay.id ? "Sending…" : "Send Announcement"}
+              </Button>
+            </div>
+          </div>
+        </div>
       )}
     </section>
   );

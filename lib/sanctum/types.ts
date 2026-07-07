@@ -32,6 +32,8 @@ export interface Publication {
   cover_image_url: string | null;
   status: string;
   published_at: string | null;
+  sent_at: string | null;
+  sent_count: number;
   created_at: string;
 }
 
@@ -52,6 +54,8 @@ export interface Essay {
   status: string;
   linkedin_url: string | null;
   published_at: string | null;
+  sent_at: string | null;
+  sent_count: number;
   created_at: string;
 }
 

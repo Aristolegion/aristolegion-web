@@ -61,6 +61,8 @@ create table if not exists publications (
   cover_image_url text,
   status text not null default 'draft' check (status in ('draft', 'published')),
   published_at timestamptz,
+  sent_at timestamptz,
+  sent_count integer not null default 0,
   created_at timestamptz not null default now()
 );
 
@@ -79,6 +81,13 @@ alter table publications enable row level security;
 -- permission-denied error — which is exactly what caused the Sanctum
 -- "Unable to load some dashboard data" warning until this grant was added.
 grant all on public.publications to service_role;
+
+-- sent_at / sent_count support the Content Dispatch System (see the
+-- Content Dispatch System section near the end of this file) — set
+-- exclusively by POST /api/sanctum/publications/[id]/send, never by the
+-- create/edit routes above, so publishing a publication and announcing it
+-- to newsletter subscribers stay two separate, independently-repeatable-once
+-- actions.
 
 -- Storage: a private "publications" bucket holds PDFs and cover images
 -- under two subfolders, keyed by slug:
@@ -110,6 +119,8 @@ create table if not exists essays (
   status text not null default 'draft' check (status in ('draft', 'published')),
   linkedin_url text,
   published_at timestamptz,
+  sent_at timestamptz,
+  sent_count integer not null default 0,
   created_at timestamptz not null default now()
 );
 
@@ -118,6 +129,10 @@ alter table essays enable row level security;
 -- Same posture as publications: no anon policies, service role only, and
 -- the full CRUD grant applied up front this time (not after the fact).
 grant all on public.essays to service_role;
+
+-- sent_at / sent_count support the Content Dispatch System (see below) —
+-- set exclusively by POST /api/sanctum/essays/[id]/send, never by the
+-- create/edit routes above. Same separation of concerns as publications.
 
 -- Essay cover images reuse the existing private "publications" bucket under
 -- a third subfolder, keyed by slug:
@@ -164,3 +179,16 @@ grant all on public.newsletter_issues to service_role;
 -- sending it to subscribers (emailing them) are deliberately separate
 -- actions. The send endpoint refuses to run a second time once sent_at is
 -- set, so clicking "Send to Subscribers" can never double-email a list.
+
+-- Content Dispatch System: extends the same publish/send separation to
+-- Publications and Essays, so either one can announce itself to newsletter
+-- subscribers without a second, parallel subscriber system.
+-- Matches the columns read/written by:
+--   app/api/sanctum/publications/[id]/send/route.ts
+--   app/api/sanctum/essays/[id]/send/route.ts
+--
+-- Unlike the Newsletter Issue send endpoint (which emails every row in
+-- newsletter_subscribers), these two endpoints only email subscribers with
+-- consent = true, and only for rows already status = 'published' — a draft
+-- publication or essay can never be announced, since the "Read
+-- Publication/Essay" link in the email would otherwise be dead on arrival.
