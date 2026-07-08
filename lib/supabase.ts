@@ -349,7 +349,7 @@ export async function supabaseCreateSignedUploadUrl(
       Authorization: `Bearer ${key}`,
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({}),
+    body: JSON.stringify({ upsert: true }),
     cache: "no-store",
   });
 
