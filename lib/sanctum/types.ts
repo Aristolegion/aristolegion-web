@@ -24,6 +24,16 @@ export interface NewsletterSubscriber {
 
 export type PublicationStatus = "draft" | "published";
 
+export interface PublicationKeyInsight {
+  title: string;
+  description: string;
+}
+
+export interface PublicationFramework {
+  title: string;
+  steps: string[];
+}
+
 export interface Publication {
   id: string;
   title: string;
@@ -37,6 +47,11 @@ export interface Publication {
   sent_at: string | null;
   sent_count: number;
   created_at: string;
+  /** Editorial metadata — optional; falls back to generated/curated content when absent. See lib/content/publicationEnhancements.ts. */
+  intelligence_brief: string | null;
+  central_question: string | null;
+  key_insights: PublicationKeyInsight[] | null;
+  framework: PublicationFramework | null;
 }
 
 export interface PublicationWithPreview extends Publication {

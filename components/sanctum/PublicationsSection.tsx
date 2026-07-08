@@ -11,12 +11,22 @@ interface PublicationsSectionProps {
   initialPublications: PublicationWithPreview[];
 }
 
+interface KeyInsightFormRow {
+  title: string;
+  description: string;
+}
+
 interface FormState {
   title: string;
   slug: string;
   category: string;
   description: string;
   status: "draft" | "published";
+  intelligenceBrief: string;
+  centralQuestion: string;
+  keyInsights: KeyInsightFormRow[];
+  frameworkTitle: string;
+  frameworkSteps: string;
 }
 
 const EMPTY_FORM: FormState = {
@@ -25,6 +35,11 @@ const EMPTY_FORM: FormState = {
   category: "",
   description: "",
   status: "draft",
+  intelligenceBrief: "",
+  centralQuestion: "",
+  keyInsights: [],
+  frameworkTitle: "",
+  frameworkSteps: "",
 };
 
 function slugify(value: string): string {
@@ -116,6 +131,11 @@ function buildMetadataBody(
   pdfPath: string | undefined,
   coverPath: string | undefined
 ) {
+  const frameworkSteps = form.frameworkSteps
+    .split(",")
+    .map((step) => step.trim())
+    .filter(Boolean);
+
   return {
     title: form.title,
     slug,
@@ -124,6 +144,15 @@ function buildMetadataBody(
     status: form.status,
     ...(pdfPath ? { pdfPath } : {}),
     ...(coverPath ? { coverPath } : {}),
+    intelligenceBrief: form.intelligenceBrief.trim(),
+    centralQuestion: form.centralQuestion.trim(),
+    keyInsights: form.keyInsights
+      .filter((row) => row.title.trim() && row.description.trim())
+      .map((row) => ({ title: row.title.trim(), description: row.description.trim() })),
+    framework:
+      form.frameworkTitle.trim() && frameworkSteps.length > 0
+        ? { title: form.frameworkTitle.trim(), steps: frameworkSteps }
+        : null,
   };
 }
 
@@ -179,6 +208,11 @@ export function PublicationsSection({ initialPublications }: PublicationsSection
       category: publication.category,
       description: publication.description,
       status: publication.status === "published" ? "published" : "draft",
+      intelligenceBrief: publication.intelligence_brief ?? "",
+      centralQuestion: publication.central_question ?? "",
+      keyInsights: publication.key_insights ?? [],
+      frameworkTitle: publication.framework?.title ?? "",
+      frameworkSteps: publication.framework?.steps.join(", ") ?? "",
     });
     setPdfFile(null);
     setCoverFile(null);
@@ -186,6 +220,29 @@ export function PublicationsSection({ initialPublications }: PublicationsSection
     setFormError("");
     setEditingId(publication.id);
     setModalMode("edit");
+  }
+
+  function handleAddKeyInsight() {
+    setForm((prev) => ({
+      ...prev,
+      keyInsights: [...prev.keyInsights, { title: "", description: "" }],
+    }));
+  }
+
+  function handleRemoveKeyInsight(index: number) {
+    setForm((prev) => ({
+      ...prev,
+      keyInsights: prev.keyInsights.filter((_, i) => i !== index),
+    }));
+  }
+
+  function handleKeyInsightChange(index: number, field: "title" | "description", value: string) {
+    setForm((prev) => ({
+      ...prev,
+      keyInsights: prev.keyInsights.map((row, i) =>
+        i === index ? { ...row, [field]: value } : row
+      ),
+    }));
   }
 
   function closeModal() {
@@ -227,6 +284,17 @@ export function PublicationsSection({ initialPublications }: PublicationsSection
 
     if (modalMode === "create" && !coverFile) {
       setFormError("A cover image is required.");
+      return;
+    }
+
+    const hasFrameworkTitle = form.frameworkTitle.trim().length > 0;
+    const hasFrameworkSteps = form.frameworkSteps
+      .split(",")
+      .map((step) => step.trim())
+      .some(Boolean);
+
+    if (hasFrameworkTitle !== hasFrameworkSteps) {
+      setFormError("Framework needs both a title and at least one step, or leave both empty.");
       return;
     }
 
@@ -709,6 +777,102 @@ export function PublicationsSection({ initialPublications }: PublicationsSection
                   onChange={(event) => setForm((prev) => ({ ...prev, description: event.target.value }))}
                   className="mt-2 w-full border border-gold-muted bg-transparent px-3 py-2 font-body text-sm text-ivory focus:border-gold focus:outline-none"
                 />
+              </div>
+
+              <div className="border-t border-gold-muted/30 pt-5">
+                <p className="font-body text-xs font-medium uppercase tracking-wider text-ivory-muted">
+                  Editorial Metadata (optional)
+                </p>
+                <p className="mt-1 font-body text-xs text-ivory-muted">
+                  Leave any of these empty to fall back to the default generated content.
+                </p>
+              </div>
+
+              <div>
+                <label htmlFor="pub-intelligence-brief" className="font-body text-xs font-medium uppercase tracking-wider text-gold">
+                  Intelligence Brief
+                </label>
+                <textarea
+                  id="pub-intelligence-brief"
+                  rows={3}
+                  value={form.intelligenceBrief}
+                  onChange={(event) => setForm((prev) => ({ ...prev, intelligenceBrief: event.target.value }))}
+                  className="mt-2 w-full border border-gold-muted bg-transparent px-3 py-2 font-body text-sm text-ivory focus:border-gold focus:outline-none"
+                  placeholder="Short summary paragraph. Separate multiple paragraphs with a blank line."
+                />
+              </div>
+
+              <div>
+                <label htmlFor="pub-central-question" className="font-body text-xs font-medium uppercase tracking-wider text-gold">
+                  Central Question
+                </label>
+                <input
+                  id="pub-central-question"
+                  value={form.centralQuestion}
+                  onChange={(event) => setForm((prev) => ({ ...prev, centralQuestion: event.target.value }))}
+                  className="mt-2 h-11 w-full border border-gold-muted bg-transparent px-3 font-body text-sm text-ivory focus:border-gold focus:outline-none"
+                  placeholder="The single question this publication answers."
+                />
+              </div>
+
+              <div>
+                <span className="font-body text-xs font-medium uppercase tracking-wider text-gold">
+                  Key Insights
+                </span>
+                <div className="mt-2 space-y-3">
+                  {form.keyInsights.map((insight, index) => (
+                    <div key={index} className="flex flex-col gap-2 border border-gold-muted/30 p-3 sm:flex-row">
+                      <div className="flex-1 space-y-2">
+                        <input
+                          aria-label={`Key insight ${index + 1} title`}
+                          value={insight.title}
+                          onChange={(event) => handleKeyInsightChange(index, "title", event.target.value)}
+                          placeholder="Insight title"
+                          className="h-10 w-full border border-gold-muted bg-transparent px-3 font-body text-sm text-ivory focus:border-gold focus:outline-none"
+                        />
+                        <input
+                          aria-label={`Key insight ${index + 1} description`}
+                          value={insight.description}
+                          onChange={(event) => handleKeyInsightChange(index, "description", event.target.value)}
+                          placeholder="Insight description"
+                          className="h-10 w-full border border-gold-muted bg-transparent px-3 font-body text-sm text-ivory focus:border-gold focus:outline-none"
+                        />
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveKeyInsight(index)}
+                        className="self-start font-body text-sm font-medium text-crimson transition-colors duration-200 hover:text-ivory sm:self-center"
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  ))}
+                </div>
+                <Button type="button" variant="ghost" className="mt-3" onClick={handleAddKeyInsight}>
+                  + Add Insight
+                </Button>
+              </div>
+
+              <div>
+                <span className="font-body text-xs font-medium uppercase tracking-wider text-gold">
+                  Framework
+                </span>
+                <div className="mt-2 space-y-3">
+                  <input
+                    aria-label="Framework title"
+                    value={form.frameworkTitle}
+                    onChange={(event) => setForm((prev) => ({ ...prev, frameworkTitle: event.target.value }))}
+                    placeholder="Framework title, e.g. The Capability Dividend™ Model"
+                    className="h-11 w-full border border-gold-muted bg-transparent px-3 font-body text-sm text-ivory focus:border-gold focus:outline-none"
+                  />
+                  <input
+                    aria-label="Framework steps"
+                    value={form.frameworkSteps}
+                    onChange={(event) => setForm((prev) => ({ ...prev, frameworkSteps: event.target.value }))}
+                    placeholder="Steps, comma-separated, e.g. Knowledge, Skill, Judgment, Capability, Impact"
+                    className="h-11 w-full border border-gold-muted bg-transparent px-3 font-body text-sm text-ivory focus:border-gold focus:outline-none"
+                  />
+                </div>
               </div>
 
               <div>

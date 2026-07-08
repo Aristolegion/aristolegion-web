@@ -1,5 +1,11 @@
 import { cookies } from "next/headers";
 import { SANCTUM_SESSION_COOKIE, isValidSessionToken } from "@/lib/sanctum/auth";
+import {
+  parseCentralQuestion,
+  parseFramework,
+  parseIntelligenceBrief,
+  parseKeyInsights,
+} from "@/lib/sanctum/publicationEditorial";
 import { SLUG_PATTERN, isExpectedCoverPath, isExpectedPdfPath } from "@/lib/sanctum/publicationStorage";
 import { supabaseInsertReturning } from "@/lib/supabase";
 import type { Publication, PublicationStatus } from "@/lib/sanctum/types";
@@ -14,6 +20,10 @@ interface CreatePublicationBody {
   status?: unknown;
   pdfPath?: unknown;
   coverPath?: unknown;
+  intelligenceBrief?: unknown;
+  centralQuestion?: unknown;
+  keyInsights?: unknown;
+  framework?: unknown;
 }
 
 function isNonEmptyString(value: unknown): value is string {
@@ -47,6 +57,26 @@ export async function POST(request: Request) {
       { success: false, error: "Title, slug, category, and description are required." },
       { status: 400 }
     );
+  }
+
+  const intelligenceBrief = parseIntelligenceBrief(body.intelligenceBrief);
+  if (!intelligenceBrief.ok) {
+    return Response.json({ success: false, error: intelligenceBrief.error }, { status: 400 });
+  }
+
+  const centralQuestion = parseCentralQuestion(body.centralQuestion);
+  if (!centralQuestion.ok) {
+    return Response.json({ success: false, error: centralQuestion.error }, { status: 400 });
+  }
+
+  const keyInsights = parseKeyInsights(body.keyInsights);
+  if (!keyInsights.ok) {
+    return Response.json({ success: false, error: keyInsights.error }, { status: 400 });
+  }
+
+  const framework = parseFramework(body.framework);
+  if (!framework.ok) {
+    return Response.json({ success: false, error: framework.error }, { status: 400 });
   }
 
   if (!SLUG_PATTERN.test(slug)) {
@@ -89,6 +119,10 @@ export async function POST(request: Request) {
       cover_image_url: coverPath,
       status,
       published_at: status === "published" ? now : null,
+      intelligence_brief: intelligenceBrief.value ?? null,
+      central_question: centralQuestion.value ?? null,
+      key_insights: keyInsights.value ?? null,
+      framework: framework.value ?? null,
     });
 
     if (!result.ok) {
