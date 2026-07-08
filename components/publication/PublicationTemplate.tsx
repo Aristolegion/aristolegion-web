@@ -10,7 +10,11 @@ import { PublicationHero } from "@/components/publication/PublicationHero";
 import { ReadingSection } from "@/components/publication/ReadingSection";
 import { RelatedIntelligence } from "@/components/publication/RelatedIntelligence";
 import { getPublicationEnhancement } from "@/lib/content/publicationEnhancements";
-import type { PublicationSection } from "@/lib/content/types";
+import type {
+  PublicationFrameworkPreview,
+  PublicationInsight,
+  PublicationSection,
+} from "@/lib/content/types";
 import {
   deriveCentralQuestion,
   deriveIntelligenceBrief,
@@ -50,15 +54,33 @@ export interface PublicationTemplateData {
   readingSections?: PublicationSection[];
   primaryAction?: PublicationAccessAction;
   secondaryAction?: PublicationAccessAction;
+  /**
+   * Editorial metadata sourced directly from the publication record (e.g. a
+   * Sanctum-authored publication). Takes priority over the curated static
+   * `publicationEnhancements.ts` entry and the generated fallback below —
+   * see the priority chain in the component body.
+   */
+  intelligenceBrief?: string[];
+  centralQuestion?: string;
+  keyInsights?: PublicationInsight[];
+  framework?: PublicationFrameworkPreview;
 }
 
 export function PublicationTemplate({ data }: { data: PublicationTemplateData }) {
   const enhancement = getPublicationEnhancement(data.title);
   const fallbackSource = data.fallbackSource ?? data.description;
 
-  const intelligenceBrief = enhancement?.intelligenceBrief ?? deriveIntelligenceBrief(fallbackSource);
-  const centralQuestion = enhancement?.centralQuestion ?? deriveCentralQuestion(fallbackSource);
-  const keyInsights = enhancement?.keyInsights ?? deriveKeyInsights(fallbackSource);
+  // Priority: publication's own editorial fields (e.g. authored in Sanctum)
+  // > curated static override (legacy publications predating these fields)
+  // > generated fallback derived from the description — so a publication
+  // never regresses to repeated description text once real fields exist,
+  // and nothing already curated or already published breaks.
+  const intelligenceBrief =
+    data.intelligenceBrief ?? enhancement?.intelligenceBrief ?? deriveIntelligenceBrief(fallbackSource);
+  const centralQuestion =
+    data.centralQuestion ?? enhancement?.centralQuestion ?? deriveCentralQuestion(fallbackSource);
+  const keyInsights = data.keyInsights ?? enhancement?.keyInsights ?? deriveKeyInsights(fallbackSource);
+  const framework = data.framework ?? enhancement?.framework;
 
   return (
     <PageShell>
@@ -80,7 +102,7 @@ export function PublicationTemplate({ data }: { data: PublicationTemplateData })
 
       <KeyInsights insights={keyInsights} />
 
-      <FrameworkPreview framework={enhancement?.framework} />
+      <FrameworkPreview framework={framework} />
 
       {data.readingSections && data.readingSections.length > 0 && (
         <Section background="ivory">

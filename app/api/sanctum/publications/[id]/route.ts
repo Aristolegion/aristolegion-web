@@ -1,6 +1,12 @@
 import { cookies } from "next/headers";
 import { SANCTUM_SESSION_COOKIE, isValidSessionToken } from "@/lib/sanctum/auth";
 import {
+  parseCentralQuestion,
+  parseFramework,
+  parseIntelligenceBrief,
+  parseKeyInsights,
+} from "@/lib/sanctum/publicationEditorial";
+import {
   PUBLICATIONS_BUCKET,
   SLUG_PATTERN,
   buildCoverPath,
@@ -32,6 +38,10 @@ interface UpdatePublicationBody {
   status?: unknown;
   pdfPath?: unknown;
   coverPath?: unknown;
+  intelligenceBrief?: unknown;
+  centralQuestion?: unknown;
+  keyInsights?: unknown;
+  framework?: unknown;
 }
 
 function isNonEmptyString(value: unknown): value is string {
@@ -89,6 +99,26 @@ export async function PATCH(request: Request, { params }: RouteParams) {
     (!isNonEmptyString(newCoverPath) || !isExpectedCoverPath(newCoverPath, slug.trim()))
   ) {
     return Response.json({ success: false, error: "Invalid cover image reference." }, { status: 400 });
+  }
+
+  const intelligenceBrief = parseIntelligenceBrief(body.intelligenceBrief);
+  if (!intelligenceBrief.ok) {
+    return Response.json({ success: false, error: intelligenceBrief.error }, { status: 400 });
+  }
+
+  const centralQuestion = parseCentralQuestion(body.centralQuestion);
+  if (!centralQuestion.ok) {
+    return Response.json({ success: false, error: centralQuestion.error }, { status: 400 });
+  }
+
+  const keyInsights = parseKeyInsights(body.keyInsights);
+  if (!keyInsights.ok) {
+    return Response.json({ success: false, error: keyInsights.error }, { status: 400 });
+  }
+
+  const framework = parseFramework(body.framework);
+  if (!framework.ok) {
+    return Response.json({ success: false, error: framework.error }, { status: 400 });
   }
 
   try {
@@ -157,6 +187,11 @@ export async function PATCH(request: Request, { params }: RouteParams) {
       status,
       pdf_url: pdfPath,
       cover_image_url: coverPath,
+      intelligence_brief:
+        intelligenceBrief.value !== undefined ? intelligenceBrief.value : existing.intelligence_brief,
+      central_question: centralQuestion.value !== undefined ? centralQuestion.value : existing.central_question,
+      key_insights: keyInsights.value !== undefined ? keyInsights.value : existing.key_insights,
+      framework: framework.value !== undefined ? framework.value : existing.framework,
     };
 
     if (status === "published" && !existing.published_at) {

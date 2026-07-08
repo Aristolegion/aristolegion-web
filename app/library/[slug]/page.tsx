@@ -142,6 +142,20 @@ function toTemplateDataFromStatic(publication: StaticPublication): PublicationTe
   };
 }
 
+// A publication authored with a blank line between paragraphs renders as
+// multiple Intelligence Brief paragraphs; a single-paragraph entry (the
+// common case) becomes a one-element array. Either way, an empty/whitespace
+// field yields undefined so PublicationTemplate falls through to the
+// curated/generated fallback rather than rendering an empty section.
+function toParagraphs(value: string | null): string[] | undefined {
+  if (!value || !value.trim()) return undefined;
+  const paragraphs = value
+    .split(/\n{2,}/)
+    .map((paragraph) => paragraph.trim())
+    .filter(Boolean);
+  return paragraphs.length > 0 ? paragraphs : undefined;
+}
+
 function toTemplateDataFromHosted(
   hosted: HostedPublication,
   coverUrl: string | null,
@@ -160,6 +174,10 @@ function toTemplateDataFromHosted(
     coverSrc: coverUrl,
     coverIsExternal: true,
     isDraftPreview,
+    intelligenceBrief: toParagraphs(hosted.intelligence_brief),
+    centralQuestion: hosted.central_question?.trim() || undefined,
+    keyInsights: hosted.key_insights && hosted.key_insights.length > 0 ? hosted.key_insights : undefined,
+    framework: hosted.framework ?? undefined,
     primaryAction: pdfPreviewUrl
       ? { label: "Read Publication", href: pdfPreviewUrl, external: true }
       : undefined,
