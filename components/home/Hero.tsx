@@ -22,7 +22,7 @@ export function Hero() {
               width={220}
               height={220}
               priority
-              className="h-[110px] w-[110px] md:h-[160px] md:w-[160px]"
+              className="h-[130px] w-[130px] md:h-[210px] md:w-[210px]"
             />
           </div>
           <Eyebrow className="mb-6">An Independent Intellectual Institution</Eyebrow>
