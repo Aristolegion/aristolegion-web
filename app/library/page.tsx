@@ -42,7 +42,7 @@ const CATEGORY_LINKS = [
   { label: "Books", href: "#books" },
 ];
 
-interface FeaturedIntelligenceItem {
+interface LibraryPublicationCard {
   slug: string;
   title: string;
   category: string;
@@ -74,28 +74,44 @@ const FEATURED_INTELLIGENCE_SLOTS: {
   },
 ];
 
-async function getFeaturedIntelligence(): Promise<FeaturedIntelligenceItem[]> {
+async function getSignedCoverUrl(coverPath: string | null): Promise<string | null> {
+  if (!coverPath) return null;
+  const signed = await supabaseCreateSignedUrl(PUBLICATIONS_BUCKET, coverPath, COVER_URL_TTL_SECONDS);
+  return signed.ok ? signed.url : null;
+}
+
+// Fetches every published hosted publication once, then splits it into the
+// curated Featured Intelligence pair (matched by title, same as before) and
+// the "Intelligence Journal Archive" — every other published publication,
+// newest first. A new Sanctum publication that doesn't match a featured
+// slot automatically lands in the archive; nothing here needs updating when
+// one is published.
+async function getLibraryPublications(): Promise<{
+  featured: LibraryPublicationCard[];
+  archive: LibraryPublicationCard[];
+}> {
   let hostedPublications: HostedPublication[] = [];
 
   try {
     const result = await supabaseSelect<HostedPublication>("publications", {
       filter: { status: "eq.published" },
+      order: "published_at.desc.nullslast,created_at.desc",
     });
 
     if (result.ok) {
       hostedPublications = result.data;
     } else {
-      console.error("LIBRARY FEATURED INTELLIGENCE FETCH ERROR:", {
+      console.error("LIBRARY PUBLICATIONS FETCH ERROR:", {
         status: result.status,
         message: result.message,
       });
     }
   } catch (error) {
-    console.error("LIBRARY FEATURED INTELLIGENCE FETCH ERROR:", error);
+    console.error("LIBRARY PUBLICATIONS FETCH ERROR:", error);
   }
 
   const usedIds = new Set<string>();
-  const featured: FeaturedIntelligenceItem[] = [];
+  const featured: LibraryPublicationCard[] = [];
 
   for (const slot of FEATURED_INTELLIGENCE_SLOTS) {
     const match = hostedPublications.find(
@@ -106,28 +122,35 @@ async function getFeaturedIntelligence(): Promise<FeaturedIntelligenceItem[]> {
     if (!match) continue;
     usedIds.add(match.id);
 
-    const coverUrl = match.cover_image_url
-      ? await supabaseCreateSignedUrl(
-          PUBLICATIONS_BUCKET,
-          match.cover_image_url,
-          COVER_URL_TTL_SECONDS
-        )
-      : null;
-
     featured.push({
       slug: match.slug,
       title: slot.title,
       category: getPublicationDisplayCategory(match.title, match.category),
       description: slot.description,
-      coverImage: coverUrl?.ok ? coverUrl.url : null,
+      coverImage: await getSignedCoverUrl(match.cover_image_url),
     });
   }
 
-  return featured;
+  const archive: LibraryPublicationCard[] = [];
+
+  for (const publication of hostedPublications) {
+    if (usedIds.has(publication.id)) continue;
+
+    archive.push({
+      slug: publication.slug,
+      title: publication.title,
+      category: getPublicationDisplayCategory(publication.title, publication.category),
+      description: publication.description,
+      coverImage: await getSignedCoverUrl(publication.cover_image_url),
+    });
+  }
+
+  return { featured, archive };
 }
 
 export default async function LibraryPage() {
-  const featuredIntelligence = await getFeaturedIntelligence();
+  const { featured: featuredIntelligence, archive: archivePublications } =
+    await getLibraryPublications();
   const glassPartition = staticPublications.find(
     (publication) => publication.slug === "the-glass-partition"
   );
@@ -218,6 +241,54 @@ export default async function LibraryPage() {
           )}
         </Container>
       </Section>
+
+      {archivePublications.length > 0 && (
+        <Section id="intelligence-journal-archive" background="ivory">
+          <Container>
+            <SectionHeading
+              eyebrow="Intelligence Journal Archive"
+              title="The Complete Archive"
+              description="The full, ever-expanding record of Aristolegion intelligence journals and executive research publications, newest first."
+              tone="ivory"
+            />
+
+            <ul className="mt-12 grid gap-8 md:grid-cols-2 lg:grid-cols-3">
+              {archivePublications.map((item) => (
+                <li key={item.slug}>
+                  <Card href={`/library/${item.slug}`} tone="ivory">
+                    <div className="relative aspect-[3/4] overflow-hidden bg-charcoal">
+                      {item.coverImage ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          src={item.coverImage}
+                          alt={item.title}
+                          className="absolute inset-0 h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+                        />
+                      ) : (
+                        <div className="absolute inset-0 flex items-center justify-center p-6 text-center">
+                          <Eyebrow>{item.category}</Eyebrow>
+                        </div>
+                      )}
+                    </div>
+                    <div className="p-6">
+                      <Eyebrow className="mb-2">{item.category}</Eyebrow>
+                      <h3 className="font-display text-xl font-semibold text-charcoal">
+                        {item.title}
+                      </h3>
+                      <p className="mt-3 font-body text-sm leading-relaxed text-charcoal/70">
+                        {item.description}
+                      </p>
+                      <span className="mt-4 inline-block font-body text-sm font-medium text-gold transition-colors duration-200 group-hover:text-navy">
+                        Explore →
+                      </span>
+                    </div>
+                  </Card>
+                </li>
+              ))}
+            </ul>
+          </Container>
+        </Section>
+      )}
 
       <Section id="frameworks" background="ivory">
         <Container>
