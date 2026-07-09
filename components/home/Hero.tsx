@@ -17,12 +17,12 @@ export function Hero() {
         <div className="mx-auto max-w-4xl text-center">
           <div className="mb-8 flex justify-center">
             <Image
-              src="/images/crest-transparent.png"
+              src="/images/crest-hero.png"
               alt="Aristolegion crest"
               width={220}
               height={220}
               priority
-              className="h-20 w-20 md:h-24 md:w-24"
+              className="h-[100px] w-[100px] md:h-[140px] md:w-[140px]"
             />
           </div>
           <Eyebrow className="mb-6">An Independent Intellectual Institution</Eyebrow>
