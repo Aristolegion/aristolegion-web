@@ -27,6 +27,8 @@ interface FormState {
   keyInsights: KeyInsightFormRow[];
   frameworkTitle: string;
   frameworkSteps: string;
+  featured: boolean;
+  featuredOrder: string;
 }
 
 const EMPTY_FORM: FormState = {
@@ -40,6 +42,8 @@ const EMPTY_FORM: FormState = {
   keyInsights: [],
   frameworkTitle: "",
   frameworkSteps: "",
+  featured: false,
+  featuredOrder: "",
 };
 
 function slugify(value: string): string {
@@ -153,7 +157,16 @@ function buildMetadataBody(
       form.frameworkTitle.trim() && frameworkSteps.length > 0
         ? { title: form.frameworkTitle.trim(), steps: frameworkSteps }
         : null,
+    featured: form.featured,
+    featuredOrder: parseFeaturedOrderInput(form.featuredOrder),
   };
+}
+
+function parseFeaturedOrderInput(value: string): number | null {
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+  const parsed = Number(trimmed);
+  return Number.isInteger(parsed) ? parsed : null;
 }
 
 export function PublicationsSection({ initialPublications }: PublicationsSectionProps) {
@@ -213,6 +226,8 @@ export function PublicationsSection({ initialPublications }: PublicationsSection
       keyInsights: publication.key_insights ?? [],
       frameworkTitle: publication.framework?.title ?? "",
       frameworkSteps: publication.framework?.steps.join(", ") ?? "",
+      featured: publication.featured,
+      featuredOrder: publication.featured_order !== null ? String(publication.featured_order) : "",
     });
     setPdfFile(null);
     setCoverFile(null);
@@ -873,6 +888,45 @@ export function PublicationsSection({ initialPublications }: PublicationsSection
                     className="h-11 w-full border border-gold-muted bg-transparent px-3 font-body text-sm text-ivory focus:border-gold focus:outline-none"
                   />
                 </div>
+              </div>
+
+              <div className="border-t border-gold-muted/30 pt-5">
+                <p className="font-body text-xs font-medium uppercase tracking-wider text-ivory-muted">
+                  Library Placement
+                </p>
+                <p className="mt-1 font-body text-xs text-ivory-muted">
+                  Controls whether this publication appears on the Library&apos;s Featured
+                  Intelligence shelf, and in what order.
+                </p>
+              </div>
+
+              <div className="flex items-center gap-3">
+                <input
+                  id="pub-featured"
+                  type="checkbox"
+                  checked={form.featured}
+                  onChange={(event) => setForm((prev) => ({ ...prev, featured: event.target.checked }))}
+                  className="h-4 w-4 accent-gold"
+                />
+                <label htmlFor="pub-featured" className="font-body text-sm text-ivory">
+                  Feature in Library
+                </label>
+              </div>
+
+              <div>
+                <label htmlFor="pub-featured-order" className="font-body text-xs font-medium uppercase tracking-wider text-gold">
+                  Featured Order
+                </label>
+                <input
+                  id="pub-featured-order"
+                  type="number"
+                  min={1}
+                  step={1}
+                  value={form.featuredOrder}
+                  onChange={(event) => setForm((prev) => ({ ...prev, featuredOrder: event.target.value }))}
+                  placeholder="Lower numbers appear first. Leave empty for newest-first fallback."
+                  className="mt-2 h-11 w-full border border-gold-muted bg-transparent px-3 font-body text-sm text-ivory focus:border-gold focus:outline-none"
+                />
               </div>
 
               <div>

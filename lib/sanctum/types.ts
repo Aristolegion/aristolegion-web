@@ -52,6 +52,9 @@ export interface Publication {
   central_question: string | null;
   key_insights: PublicationKeyInsight[] | null;
   framework: PublicationFramework | null;
+  /** Library placement — controls the Featured Intelligence shelf. See app/library/page.tsx. */
+  featured: boolean;
+  featured_order: number | null;
 }
 
 export interface PublicationWithPreview extends Publication {

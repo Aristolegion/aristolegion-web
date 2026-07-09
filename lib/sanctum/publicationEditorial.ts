@@ -85,3 +85,20 @@ export function parseFramework(value: unknown): FieldResult<PublicationFramework
     value: { title: title.trim(), steps: steps.map((step) => (step as string).trim()) },
   };
 }
+
+export function parseFeatured(value: unknown): FieldResult<boolean> {
+  if (value === undefined) return { ok: true, value: undefined };
+  if (typeof value !== "boolean") {
+    return { ok: false, error: "Featured must be true or false." };
+  }
+  return { ok: true, value };
+}
+
+export function parseFeaturedOrder(value: unknown): FieldResult<number> {
+  if (value === undefined) return { ok: true, value: undefined };
+  if (value === null) return { ok: true, value: null };
+  if (typeof value !== "number" || !Number.isInteger(value)) {
+    return { ok: false, error: "Featured order must be a whole number." };
+  }
+  return { ok: true, value };
+}

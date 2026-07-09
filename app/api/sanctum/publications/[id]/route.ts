@@ -2,6 +2,8 @@ import { cookies } from "next/headers";
 import { SANCTUM_SESSION_COOKIE, isValidSessionToken } from "@/lib/sanctum/auth";
 import {
   parseCentralQuestion,
+  parseFeatured,
+  parseFeaturedOrder,
   parseFramework,
   parseIntelligenceBrief,
   parseKeyInsights,
@@ -42,6 +44,8 @@ interface UpdatePublicationBody {
   centralQuestion?: unknown;
   keyInsights?: unknown;
   framework?: unknown;
+  featured?: unknown;
+  featuredOrder?: unknown;
 }
 
 function isNonEmptyString(value: unknown): value is string {
@@ -121,6 +125,16 @@ export async function PATCH(request: Request, { params }: RouteParams) {
     return Response.json({ success: false, error: framework.error }, { status: 400 });
   }
 
+  const featured = parseFeatured(body.featured);
+  if (!featured.ok) {
+    return Response.json({ success: false, error: featured.error }, { status: 400 });
+  }
+
+  const featuredOrder = parseFeaturedOrder(body.featuredOrder);
+  if (!featuredOrder.ok) {
+    return Response.json({ success: false, error: featuredOrder.error }, { status: 400 });
+  }
+
   try {
     const existingResult = await supabaseSelect<Publication>("publications", {
       filter: { id: `eq.${id}` },
@@ -192,6 +206,8 @@ export async function PATCH(request: Request, { params }: RouteParams) {
       central_question: centralQuestion.value !== undefined ? centralQuestion.value : existing.central_question,
       key_insights: keyInsights.value !== undefined ? keyInsights.value : existing.key_insights,
       framework: framework.value !== undefined ? framework.value : existing.framework,
+      featured: featured.value !== undefined ? featured.value : existing.featured,
+      featured_order: featuredOrder.value !== undefined ? featuredOrder.value : existing.featured_order,
     };
 
     if (status === "published" && !existing.published_at) {

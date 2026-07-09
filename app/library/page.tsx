@@ -50,43 +50,34 @@ interface LibraryPublicationCard {
   coverImage: string | null;
 }
 
-// Research-first hierarchy per the content architecture review — a fixed,
-// curated pair rather than the full date-sorted publication list. Matches
-// hosted Sanctum publications by title; title/category/description here are
-// the reviewed page copy, independent of whatever the live record says, so
-// a hosted publication is only used as a slug + cover lookup.
-const FEATURED_INTELLIGENCE_SLOTS: {
-  match: (title: string) => boolean;
-  title: string;
-  description: string;
-}[] = [
-  {
-    match: (title) => title.includes("capability dividend"),
-    title: "Capability Dividend™",
-    description:
-      "Why capability has become the last remaining competitive advantage in the age of accelerating technology.",
-  },
-  {
-    match: (title) => title.includes("employability fracture"),
-    title: "Aristolegion Intelligence Journal — Employability Fracture",
-    description:
-      "Deconstructing changing talent realities and the imperative for judgment-driven leadership.",
-  },
-];
-
 async function getSignedCoverUrl(coverPath: string | null): Promise<string | null> {
   if (!coverPath) return null;
   const signed = await supabaseCreateSignedUrl(PUBLICATIONS_BUCKET, coverPath, COVER_URL_TTL_SECONDS);
   return signed.ok ? signed.url : null;
 }
 
-// Fetches every published hosted publication once, then splits it into the
-// curated Featured Intelligence pair (matched by title, same as before) and
-// the "Intelligence Journal Archive" — every other published publication,
-// newest first. A new Sanctum publication that doesn't match a featured
-// slot automatically lands in the archive; nothing here needs updating when
-// one is published.
+async function toLibraryCard(publication: HostedPublication): Promise<LibraryPublicationCard> {
+  return {
+    slug: publication.slug,
+    title: publication.title,
+    category: getPublicationDisplayCategory(publication.title, publication.category),
+    description: publication.description,
+    coverImage: await getSignedCoverUrl(publication.cover_image_url),
+  };
+}
+
+// Fetches every published hosted publication once (newest first), then
+// derives all three Library tiers from that single list — no title
+// matching anywhere, so a new Sanctum publication surfaces automatically
+// and its Library placement is controlled entirely from the CMS:
+//
+// 1. Latest Intelligence — the single newest published publication.
+// 2. Featured Intelligence — publications flagged `featured` in Sanctum,
+//    ordered by `featured_order` ascending (nulls fall back to newest
+//    first, i.e. the order they already arrive in from the query).
+// 3. Intelligence Archive — everything else, newest first.
 async function getLibraryPublications(): Promise<{
+  latest: LibraryPublicationCard | null;
   featured: LibraryPublicationCard[];
   archive: LibraryPublicationCard[];
 }> {
@@ -110,47 +101,43 @@ async function getLibraryPublications(): Promise<{
     console.error("LIBRARY PUBLICATIONS FETCH ERROR:", error);
   }
 
-  const usedIds = new Set<string>();
+  const latestPublication = hostedPublications[0] ?? null;
+  const latest = latestPublication ? await toLibraryCard(latestPublication) : null;
+
+  const featuredSource = hostedPublications
+    .filter((publication) => publication.featured)
+    .map((publication, index) => ({ publication, index }))
+    .sort((a, b) => {
+      const orderA = a.publication.featured_order;
+      const orderB = b.publication.featured_order;
+      if (orderA !== null && orderB !== null) return orderA - orderB;
+      if (orderA !== null) return -1;
+      if (orderB !== null) return 1;
+      return a.index - b.index; // both unordered: preserve newest-first fallback
+    })
+    .map((entry) => entry.publication);
+
   const featured: LibraryPublicationCard[] = [];
-
-  for (const slot of FEATURED_INTELLIGENCE_SLOTS) {
-    const match = hostedPublications.find(
-      (publication) =>
-        !usedIds.has(publication.id) && slot.match(publication.title.toLowerCase())
-    );
-
-    if (!match) continue;
-    usedIds.add(match.id);
-
-    featured.push({
-      slug: match.slug,
-      title: slot.title,
-      category: getPublicationDisplayCategory(match.title, match.category),
-      description: slot.description,
-      coverImage: await getSignedCoverUrl(match.cover_image_url),
-    });
+  for (const publication of featuredSource) {
+    featured.push(await toLibraryCard(publication));
   }
 
   const archive: LibraryPublicationCard[] = [];
-
   for (const publication of hostedPublications) {
-    if (usedIds.has(publication.id)) continue;
-
-    archive.push({
-      slug: publication.slug,
-      title: publication.title,
-      category: getPublicationDisplayCategory(publication.title, publication.category),
-      description: publication.description,
-      coverImage: await getSignedCoverUrl(publication.cover_image_url),
-    });
+    if (latestPublication && publication.id === latestPublication.id) continue;
+    if (publication.featured) continue;
+    archive.push(await toLibraryCard(publication));
   }
 
-  return { featured, archive };
+  return { latest, featured, archive };
 }
 
 export default async function LibraryPage() {
-  const { featured: featuredIntelligence, archive: archivePublications } =
-    await getLibraryPublications();
+  const {
+    latest: latestIntelligence,
+    featured: featuredIntelligence,
+    archive: archivePublications,
+  } = await getLibraryPublications();
   const glassPartition = staticPublications.find(
     (publication) => publication.slug === "the-glass-partition"
   );
@@ -194,11 +181,55 @@ export default async function LibraryPage() {
         </Container>
       </div>
 
+      {latestIntelligence && (
+        <Section id="latest-intelligence" background="navy">
+          <Container>
+            <SectionHeading
+              eyebrow="Latest Intelligence"
+              title="The Newest Release"
+              description="The most recently published Aristolegion research — surfaced automatically the moment it goes live."
+              tone="navy"
+            />
+
+            <div className="mx-auto mt-12 max-w-2xl">
+              <Card href={`/library/${latestIntelligence.slug}`} tone="navy">
+                <div className="relative aspect-[16/9] overflow-hidden bg-charcoal">
+                  {latestIntelligence.coverImage ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={latestIntelligence.coverImage}
+                      alt={latestIntelligence.title}
+                      className="absolute inset-0 h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+                    />
+                  ) : (
+                    <div className="absolute inset-0 flex items-center justify-center p-6 text-center">
+                      <Eyebrow>{latestIntelligence.category}</Eyebrow>
+                    </div>
+                  )}
+                </div>
+                <div className="p-8">
+                  <Eyebrow className="mb-2">{latestIntelligence.category}</Eyebrow>
+                  <h3 className="font-display text-2xl font-semibold text-ivory md:text-3xl">
+                    {latestIntelligence.title}
+                  </h3>
+                  <p className="mt-4 font-body text-base leading-relaxed text-ivory-muted">
+                    {latestIntelligence.description}
+                  </p>
+                  <span className="mt-6 inline-block font-body text-sm font-medium text-gold transition-colors duration-200 group-hover:text-ivory">
+                    Explore →
+                  </span>
+                </div>
+              </Card>
+            </div>
+          </Container>
+        </Section>
+      )}
+
       <Section id="featured-intelligence" background="navy">
         <Container>
           <SectionHeading
             eyebrow="Featured Intelligence"
-            title="Intelligence Archive"
+            title="Signature Publications"
             description="Selected research publications and executive briefings from Aristolegion exploring the forces shaping individuals, organizations, and the future of work."
             tone="navy"
           />
@@ -243,11 +274,11 @@ export default async function LibraryPage() {
       </Section>
 
       {archivePublications.length > 0 && (
-        <Section id="intelligence-journal-archive" background="ivory">
+        <Section id="intelligence-archive" background="ivory">
           <Container>
             <SectionHeading
-              eyebrow="Intelligence Journal Archive"
-              title="The Complete Archive"
+              eyebrow="Intelligence Archive"
+              title="The Complete Record"
               description="The full, ever-expanding record of Aristolegion intelligence journals and executive research publications, newest first."
               tone="ivory"
             />
