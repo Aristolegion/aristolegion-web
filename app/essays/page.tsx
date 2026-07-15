@@ -26,6 +26,13 @@ export const metadata: Metadata = {
     type: "website",
     images: ["/images/crest.png"],
   },
+  twitter: {
+    card: "summary_large_image",
+    title: "Essays — Aristolegion",
+    description:
+      "Ongoing essays developing Aristolegion's intellectual voice — on judgment, capability, leadership, and the future of work.",
+    images: ["/images/crest.png"],
+  },
 };
 
 export const dynamic = "force-dynamic";

@@ -22,6 +22,13 @@ export const metadata: Metadata = {
     type: "website",
     images: ["/images/crest.png"],
   },
+  twitter: {
+    card: "summary_large_image",
+    title: "Newsletter — Aristolegion",
+    description:
+      "Published issues of the Aristolegion Newsletter — dispatches on judgment, capability, leadership, and human excellence.",
+    images: ["/images/crest.png"],
+  },
 };
 
 // Every issue here comes from Supabase (no-store fetch), so this route must

@@ -19,6 +19,13 @@ export const metadata: Metadata = {
     type: "website",
     images: ["/images/crest.png"],
   },
+  twitter: {
+    card: "summary_large_image",
+    title: "Apply to the Inner Circle — Aristolegion",
+    description:
+      "Begin your application to the Aristolegion Inner Circle, an application-based cohort for judgment, capability, and leadership.",
+    images: ["/images/crest.png"],
+  },
 };
 
 export default function InnerCircleApplyPage() {
