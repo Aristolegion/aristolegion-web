@@ -11,13 +11,16 @@
 // applies baseline HTTP security headers (ES-003). Deliberately structured
 // so later Engineering Specifications can add each remaining concern as its
 // own step in `runProxy` without restructuring this file:
-//   - CSP
 //   - Rate Limiting
 //   - Authentication
 //   - AI Gateway
 //   - Logging
-// None of those are implemented here. No database access, no auth, no
-// logging — just request ID plumbing and security headers.
+// Content-Security-Policy (ES-004B) deliberately does NOT live here — it is
+// nonce-free and delivered as a static header via next.config.ts's
+// headers(), which preserves SSG for every route. See next.config.ts for
+// the policy and the reasoning for that choice.
+// No database access, no auth, no logging — just request ID plumbing and
+// security headers.
 
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
