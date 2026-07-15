@@ -7,22 +7,29 @@
 // on the current convention. See:
 // node_modules/next/dist/docs/01-app/03-api-reference/03-file-conventions/proxy.md
 //
-// Today this file only stamps every request/response with a request ID.
-// Deliberately structured so later Engineering Specifications can add each
-// concern as its own step in `runProxy` without restructuring this file:
-//   - Security Headers
+// This file stamps every request/response with a request ID (ES-002) and
+// applies baseline HTTP security headers (ES-003). Deliberately structured
+// so later Engineering Specifications can add each remaining concern as its
+// own step in `runProxy` without restructuring this file:
 //   - CSP
 //   - Rate Limiting
 //   - Authentication
 //   - AI Gateway
 //   - Logging
 // None of those are implemented here. No database access, no auth, no
-// logging — just the request ID plumbing.
+// logging — just request ID plumbing and security headers.
 
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
 const REQUEST_ID_HEADER = "x-request-id";
+
+// Permissions-Policy: this application does not use any of these browser
+// features anywhere in the codebase (verified: no camera/microphone/
+// geolocation/payment APIs referenced), so they are disabled for every
+// origin, including this one. Kept minimal — only features confirmed
+// unused are listed here, per ES-003.
+const PERMISSIONS_POLICY = "camera=(), microphone=(), geolocation=(), payment=()";
 
 function withRequestId(request: NextRequest): { requestId: string; response: NextResponse } {
   const requestId = crypto.randomUUID();
@@ -41,12 +48,22 @@ function withRequestId(request: NextRequest): { requestId: string; response: Nex
   return { requestId, response };
 }
 
-// Future steps (Security Headers, CSP, Rate Limiting, Authentication, AI
-// Gateway, Logging) will each read/write `response` here, in order, before
-// the final return — this function is the single seam future specs extend.
+// ES-003: baseline HTTP security headers. No CSP, HSTS, COEP, COOP, or CORP
+// here — those are explicitly out of scope for this step.
+function withSecurityHeaders(response: NextResponse): NextResponse {
+  response.headers.set("X-Content-Type-Options", "nosniff");
+  response.headers.set("X-Frame-Options", "DENY");
+  response.headers.set("Referrer-Policy", "strict-origin-when-cross-origin");
+  response.headers.set("Permissions-Policy", PERMISSIONS_POLICY);
+  return response;
+}
+
+// Future steps (CSP, Rate Limiting, Authentication, AI Gateway, Logging)
+// will each read/write `response` here, in order, before the final return —
+// this function is the single seam future specs extend.
 function runProxy(request: NextRequest): NextResponse {
   const { response } = withRequestId(request);
-  return response;
+  return withSecurityHeaders(response);
 }
 
 export function proxy(request: NextRequest) {
