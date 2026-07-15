@@ -87,7 +87,13 @@ create table if not exists publications (
   published_at timestamptz,
   sent_at timestamptz,
   sent_count integer not null default 0,
-  created_at timestamptz not null default now()
+  created_at timestamptz not null default now(),
+  intelligence_brief text,
+  central_question text,
+  key_insights jsonb,
+  framework jsonb,
+  featured boolean not null default false,
+  featured_order integer
 );
 
 alter table publications enable row level security;
@@ -112,6 +118,20 @@ grant all on public.publications to service_role;
 -- create/edit routes above, so publishing a publication and announcing it
 -- to newsletter subscribers stay two separate, independently-repeatable-once
 -- actions.
+--
+-- intelligence_brief / central_question / key_insights / framework are
+-- optional editorial metadata authored in the Sanctum publication editor
+-- (components/sanctum/PublicationsSection.tsx). key_insights and framework
+-- are stored as jsonb: key_insights is an array of {title, description}
+-- objects, framework is a single {title, steps: string[]} object. All four
+-- fall back to curated content in lib/content/publicationEnhancements.ts,
+-- matched by title, when left empty — see lib/sanctum/types.ts for the
+-- exact shapes and that fallback relationship.
+--
+-- featured / featured_order control placement on the /library page's
+-- Featured Intelligence shelf (app/library/page.tsx) — featured_order is
+-- nullable and only meaningful when featured is true, sorting the shelf
+-- ascending when set.
 
 -- Storage: a private "publications" bucket holds PDFs and cover images
 -- under two subfolders, keyed by slug:
