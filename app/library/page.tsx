@@ -30,6 +30,13 @@ export const metadata: Metadata = {
     type: "website",
     images: ["/images/crest.png"],
   },
+  twitter: {
+    card: "summary_large_image",
+    title: "Aristolegion Library | Intelligence Journals & Research",
+    description:
+      "Explore Aristolegion publications, research frameworks, leadership intelligence essays, and human capability studies.",
+    images: ["/images/crest.png"],
+  },
 };
 
 export const dynamic = "force-dynamic";

@@ -32,6 +32,12 @@ export const metadata: Metadata = {
     type: "profile",
     images: ["/images/founder-uday.png"],
   },
+  twitter: {
+    card: "summary_large_image",
+    title: "Uday Anshuman — Founder, Aristolegion",
+    description: founder.bio,
+    images: ["/images/founder-uday.png"],
+  },
 };
 
 export const dynamic = "force-dynamic";

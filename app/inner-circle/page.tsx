@@ -25,6 +25,13 @@ export const metadata: Metadata = {
     type: "website",
     images: ["/images/crest.png"],
   },
+  twitter: {
+    card: "summary_large_image",
+    title: "The Aristolegion Inner Circle",
+    description:
+      "An emerging community for individuals exploring judgment, capability, leadership, and the future of human potential.",
+    images: ["/images/crest.png"],
+  },
 };
 
 const FUTURE_CIRCLE_ITEMS = [

@@ -22,6 +22,13 @@ export const metadata: Metadata = {
     type: "article",
     images: ["/images/crest.png"],
   },
+  twitter: {
+    card: "summary_large_image",
+    title: "The Aristolegion Manifesto",
+    description:
+      "The philosophy, principles, and purpose behind Aristolegion — an independent intellectual institution dedicated to judgment, capability, and human excellence.",
+    images: ["/images/crest.png"],
+  },
 };
 
 export default function ManifestoPage() {

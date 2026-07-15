@@ -27,6 +27,23 @@ const CONTENT_SECURITY_POLICY = [
 ].join("; ");
 
 const nextConfig: NextConfig = {
+  // ES-005: stop advertising the framework in every response (pure
+  // information-disclosure reduction, zero functional effect — confirmed via
+  // `X-Powered-By: Next.js` present on every response since ES-002).
+  poweredByHeader: false,
+
+  // ES-005: strip console.log/warn/info/debug from the production build.
+  // console.error is explicitly excluded because the overwhelming majority
+  // of console usage in this codebase is legitimate server-side operational
+  // error logging (Route Handlers, Server Components) that Vercel captures
+  // in function logs — only the three `console.log` calls in
+  // components/inner-circle/ApplicationForm.tsx (client-side debug
+  // leftovers, visible to any visitor's devtools) are actually removed by
+  // this in production. Does not affect `next dev`.
+  compiler: {
+    removeConsole: { exclude: ["error"] },
+  },
+
   async headers() {
     return [
       {

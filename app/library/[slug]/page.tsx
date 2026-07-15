@@ -91,6 +91,12 @@ export async function generateMetadata({
         authors: [publication.author],
         images: [publication.coverImage],
       },
+      twitter: {
+        card: "summary_large_image",
+        title: publication.title,
+        description: publication.excerpt,
+        images: [publication.coverImage],
+      },
     };
   }
 
