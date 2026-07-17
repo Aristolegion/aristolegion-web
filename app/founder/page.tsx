@@ -11,8 +11,7 @@ import { Eyebrow } from "@/components/ui/Eyebrow";
 import { SectionHeading } from "@/components/ui/SectionHeading";
 import { founder } from "@/lib/content/homepage";
 import { founderResearchInterests } from "@/lib/content/founderResearchInterests";
-import { publications as staticPublications } from "@/lib/content/library";
-import { supabaseCreateSignedUrl, supabaseSelect } from "@/lib/supabase";
+import { resolveCoverImage, supabaseSelect } from "@/lib/supabase";
 import type { Publication as HostedPublication } from "@/lib/sanctum/types";
 
 const PUBLICATIONS_BUCKET = "publications";
@@ -82,19 +81,35 @@ async function getSelectedWorks(): Promise<SelectedWork[]> {
         );
         if (!match) continue;
 
-        const coverUrl = match.cover_image_url
-          ? await supabaseCreateSignedUrl(
-              PUBLICATIONS_BUCKET,
-              match.cover_image_url,
-              COVER_URL_TTL_SECONDS
-            )
-          : null;
+        const cover = await resolveCoverImage(PUBLICATIONS_BUCKET, match.cover_image_url, COVER_URL_TTL_SECONDS);
 
         works.push({
           slug: match.slug,
           title: slot.title,
           type: slot.type,
-          coverImage: coverUrl?.ok ? coverUrl.url : null,
+          coverImage: cover.url,
+        });
+      }
+
+      // "The Glass Partition" (ES-008A, promoted from static content into
+      // the canonical `publications` table) is matched by slug rather than
+      // a title predicate like the slots above.
+      const glassPartitionMatch = result.data.find(
+        (publication) => publication.slug === "the-glass-partition"
+      );
+
+      if (glassPartitionMatch) {
+        const cover = await resolveCoverImage(
+          PUBLICATIONS_BUCKET,
+          glassPartitionMatch.cover_image_url,
+          COVER_URL_TTL_SECONDS
+        );
+
+        works.push({
+          slug: glassPartitionMatch.slug,
+          title: glassPartitionMatch.title,
+          type: "Book",
+          coverImage: cover.url,
         });
       }
     } else {
@@ -105,19 +120,6 @@ async function getSelectedWorks(): Promise<SelectedWork[]> {
     }
   } catch (error) {
     console.error("FOUNDER SELECTED WORKS FETCH ERROR:", error);
-  }
-
-  const glassPartition = staticPublications.find(
-    (publication) => publication.slug === "the-glass-partition"
-  );
-
-  if (glassPartition) {
-    works.push({
-      slug: glassPartition.slug,
-      title: glassPartition.title,
-      type: "Book",
-      coverImage: glassPartition.coverImage,
-    });
   }
 
   return works;

@@ -4,9 +4,71 @@ import { Section } from "@/components/layout/Section";
 import { Card } from "@/components/ui/Card";
 import { Eyebrow } from "@/components/ui/Eyebrow";
 import { SectionHeading } from "@/components/ui/SectionHeading";
-import { essays } from "@/lib/content/essays";
+import { essays as staticEssays } from "@/lib/content/essays";
+import { supabaseSelect } from "@/lib/supabase";
+import type { Essay as HostedEssay } from "@/lib/sanctum/types";
 
-export function FeaturedEssays() {
+const FEATURED_ESSAY_LIMIT = 3;
+
+interface FeaturedEssayItem {
+  slug: string;
+  category: string;
+  title: string;
+  excerpt: string;
+  sortDate: string;
+}
+
+// Mirrors app/essays/page.tsx's static+hosted merge — this section
+// previously read only the static `essays` array, which went empty once
+// ES-008A promoted all three static essays into the canonical `essays`
+// table (supabase/migrations/0006_promote_static_content.sql). Hosted
+// essays carry no category column, so they use the same "Essay" label
+// app/essays/page.tsx already established for hosted essays.
+async function getFeaturedEssays(): Promise<FeaturedEssayItem[]> {
+  const hostedItems: FeaturedEssayItem[] = [];
+
+  try {
+    const result = await supabaseSelect<HostedEssay>("essays", {
+      order: "published_at.desc",
+      filter: { status: "eq.published" },
+    });
+
+    if (result.ok) {
+      for (const essay of result.data) {
+        hostedItems.push({
+          slug: essay.slug,
+          category: "Essay",
+          title: essay.title,
+          excerpt: essay.excerpt,
+          sortDate: essay.published_at ?? essay.created_at,
+        });
+      }
+    } else {
+      console.error("HOMEPAGE ESSAYS FETCH ERROR:", {
+        status: result.status,
+        message: result.message,
+      });
+    }
+  } catch (error) {
+    console.error("HOMEPAGE ESSAYS FETCH ERROR:", error);
+  }
+
+  const staticItems: FeaturedEssayItem[] = staticEssays.map((essay) => ({
+    slug: essay.slug,
+    category: essay.category,
+    title: essay.title,
+    excerpt: essay.excerpt,
+    sortDate: essay.publishDate,
+  }));
+
+  return [...hostedItems, ...staticItems]
+    .sort((a, b) => new Date(b.sortDate).getTime() - new Date(a.sortDate).getTime())
+    .slice(0, FEATURED_ESSAY_LIMIT);
+}
+
+export async function FeaturedEssays() {
+  const essays = await getFeaturedEssays();
+
   return (
     <Section id="essays" background="navy">
       <Container>

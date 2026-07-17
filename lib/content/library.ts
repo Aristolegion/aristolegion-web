@@ -1,50 +1,33 @@
 import type { Framework, Publication } from "./types";
 
-export const publications: Publication[] = [
-  {
-    slug: "the-glass-partition",
-    title: "The Glass Partition",
-    subtitle:
-      "A study of invisible barriers in modern institutions, told as reflective fiction.",
-    category: "Novel",
-    author: "Uday Anshuman",
-    publishDate: "2026-02-14",
-    readingTime: "14 min read",
-    coverImage: "/images/glass-partition.png",
-    excerpt: "A study of invisible barriers in modern institutions.",
-    sections: [
-      {
-        heading: "I.",
-        paragraphs: [
-          "The thirty-eighth floor was glass on every side, and Mira had stopped noticing the view years ago. What she noticed instead was the partition — a single pane separating the executive floor from the one beneath it, thin enough to see through, solid enough that no sound had ever crossed it in six years.",
-          "She had worked beneath that glass long before she was invited above it. The invitation changed nothing about the building. It changed everything about how she read a room.",
-        ],
-        quote:
-          "The partition was never about keeping people out. It was about deciding, quietly, who was already in.",
-      },
-      {
-        heading: "II.",
-        paragraphs: [
-          "From above, the floor below looked orderly — rows of desks, the low hum of people trying to be noticed by someone who could not see them. From below, the floor above had looked the same way for six years: closer, brighter, and entirely silent.",
-          "Mira understood, standing on the new side of the glass for the first time, that she had spent six years mistaking proximity for access. The partition had never moved. She had simply been handed a door.",
-        ],
-      },
-      {
-        heading: "A Note on This Excerpt",
-        paragraphs: [
-          "The Glass Partition is a full-length work of reflective fiction exploring the quiet architecture of modern institutions — who is granted access, who is merely granted a view, and what changes once the glass is crossed. The pages above are drawn from its opening chapter.",
-        ],
-      },
-    ],
-    externalLinks: {
-      primary: {
-        label: "Read on Amazon Kindle",
-        url: "https://www.amazon.in/dp/B0GSSMVXPX",
-      },
-    },
-  },
-];
+// "The Glass Partition" formerly listed here was promoted to the
+// canonical `publications` table in Supabase (ES-008A,
+// supabase/migrations/0006_promote_static_content.sql) per EDR-001. This
+// array is empty rather than removed — getPublication below stays in
+// place so app/library/[slug]/page.tsx's static-first/DB-fallback routing
+// continues to work unchanged.
+export const publications: Publication[] = [];
 
+export function getPublication(slug: string): Publication | undefined {
+  return publications.find((publication) => publication.slug === slug);
+}
+
+// TRANSITIONAL — ES-008A staged deployment. The canonical `frameworks`
+// table (supabase/migrations/0003_knowledge_graph_schema.sql /
+// 0005_graph_bootstrap.sql) is merged but not yet applied to production.
+// app/library/page.tsx's getFrameworks() queries the DB first and falls
+// back to this array only if that query fails or returns zero rows, so
+// the Framework shelf keeps rendering today's content with no visible
+// regression until the migrations are applied. Per EDR-001, this array is
+// transitional: remove it (and the fallback branch in getFrameworks())
+// once 0003-0006 have been applied to production and verified — do not
+// remove it before then. Values are identical, verbatim, to what
+// 0005_graph_bootstrap.sql inserts into the `frameworks` table.
+//
+// TODO(ES-008A): remove this array once migrations 0003-0006 are applied
+// to production and verified. Per EDR-001, the database becomes the
+// canonical knowledge store only after successful migration and
+// verification — not merely after merge.
 export const frameworks: Framework[] = [
   {
     title: "Capability Dividend™",
@@ -65,7 +48,3 @@ export const frameworks: Framework[] = [
     status: "Research Development",
   },
 ];
-
-export function getPublication(slug: string): Publication | undefined {
-  return publications.find((publication) => publication.slug === slug);
-}

@@ -4,8 +4,7 @@ import { Section } from "@/components/layout/Section";
 import { Card } from "@/components/ui/Card";
 import { Eyebrow } from "@/components/ui/Eyebrow";
 import { SectionHeading } from "@/components/ui/SectionHeading";
-import { publications as staticPublications } from "@/lib/content/library";
-import { supabaseCreateSignedUrl, supabaseSelect } from "@/lib/supabase";
+import { resolveCoverImage, supabaseSelect } from "@/lib/supabase";
 import type { Publication as HostedPublication } from "@/lib/sanctum/types";
 
 const PUBLICATIONS_BUCKET = "publications";
@@ -87,37 +86,41 @@ async function getFeaturedItems(): Promise<FeaturedItem[]> {
     if (!match) continue;
     usedIds.add(match.id);
 
-    const coverUrl = match.cover_image_url
-      ? await supabaseCreateSignedUrl(
-          PUBLICATIONS_BUCKET,
-          match.cover_image_url,
-          COVER_URL_TTL_SECONDS
-        )
-      : null;
+    const cover = await resolveCoverImage(PUBLICATIONS_BUCKET, match.cover_image_url, COVER_URL_TTL_SECONDS);
 
     featured.push({
       slug: match.slug,
       title: slot.title,
       category: slot.category,
       description: slot.description,
-      coverImage: coverUrl?.ok ? coverUrl.url : null,
-      isHosted: true,
+      coverImage: cover.url,
+      isHosted: !cover.isLocal,
     });
   }
 
-  const glassPartition = staticPublications.find(
-    (publication) => publication.slug === "the-glass-partition"
+  // "The Glass Partition" (ES-008A, promoted from static content into the
+  // canonical `publications` table) is matched by slug rather than a title
+  // predicate like the slots above — its curated homepage copy below is
+  // deliberately fixed, independent of the live record, same as the slots.
+  const glassPartitionMatch = hostedPublications.find(
+    (publication) => !usedIds.has(publication.id) && publication.slug === "the-glass-partition"
   );
 
-  if (glassPartition) {
+  if (glassPartitionMatch) {
+    const cover = await resolveCoverImage(
+      PUBLICATIONS_BUCKET,
+      glassPartitionMatch.cover_image_url,
+      COVER_URL_TTL_SECONDS
+    );
+
     featured.push({
-      slug: glassPartition.slug,
-      title: glassPartition.title,
+      slug: glassPartitionMatch.slug,
+      title: glassPartitionMatch.title,
       category: "Novel",
       description:
         "A philosophical exploration of invisible barriers within modern institutions.",
-      coverImage: glassPartition.coverImage,
-      isHosted: false,
+      coverImage: cover.url,
+      isHosted: !cover.isLocal,
     });
   }
 

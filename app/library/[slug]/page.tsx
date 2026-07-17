@@ -8,7 +8,7 @@ import {
 import { getPublication, publications } from "@/lib/content/library";
 import { getPublicationDisplayCategory } from "@/lib/content/publicationEnhancements";
 import { SANCTUM_SESSION_COOKIE, isValidSessionToken } from "@/lib/sanctum/auth";
-import { supabaseCreateSignedUrl, supabaseSelect } from "@/lib/supabase";
+import { resolveCoverImage, supabaseCreateSignedUrl, supabaseSelect } from "@/lib/supabase";
 import type { Publication as HostedPublication } from "@/lib/sanctum/types";
 import type { Publication as StaticPublication } from "@/lib/content/types";
 
@@ -165,11 +165,18 @@ function toParagraphs(value: string | null): string[] | undefined {
 function toTemplateDataFromHosted(
   hosted: HostedPublication,
   coverUrl: string | null,
+  coverIsExternal: boolean,
   pdfPreviewUrl: string | null,
   pdfDownloadUrl: string | null,
   isDraftPreview: boolean
 ): PublicationTemplateData {
   const dateSource = hosted.published_at ?? hosted.created_at;
+
+  const primaryAction = pdfPreviewUrl
+    ? { label: "Read Publication", href: pdfPreviewUrl, external: true }
+    : hosted.external_link_label && hosted.external_link_url
+      ? { label: hosted.external_link_label, href: hosted.external_link_url, external: true }
+      : undefined;
 
   return {
     slug: hosted.slug,
@@ -178,15 +185,14 @@ function toTemplateDataFromHosted(
     description: hosted.description,
     year: dateSource ? new Date(dateSource).getFullYear().toString() : null,
     coverSrc: coverUrl,
-    coverIsExternal: true,
+    coverIsExternal,
     isDraftPreview,
+    readingSections: hosted.content ?? undefined,
     intelligenceBrief: toParagraphs(hosted.intelligence_brief),
     centralQuestion: hosted.central_question?.trim() || undefined,
     keyInsights: hosted.key_insights && hosted.key_insights.length > 0 ? hosted.key_insights : undefined,
     framework: hosted.framework ?? undefined,
-    primaryAction: pdfPreviewUrl
-      ? { label: "Read Publication", href: pdfPreviewUrl, external: true }
-      : undefined,
+    primaryAction,
     secondaryAction: pdfDownloadUrl
       ? { label: "Download PDF", href: pdfDownloadUrl, external: true }
       : undefined,
@@ -249,21 +255,18 @@ export default async function PublicationPage({
   }
 
   let coverUrl: string | null = null;
+  let coverIsExternal = true;
 
   try {
-    const signedCover = await supabaseCreateSignedUrl(
-      PUBLICATIONS_BUCKET,
-      hosted.cover_image_url,
-      VIEWER_URL_TTL_SECONDS
-    );
+    const resolved = await resolveCoverImage(PUBLICATIONS_BUCKET, hosted.cover_image_url, VIEWER_URL_TTL_SECONDS);
+    coverUrl = resolved.url;
+    coverIsExternal = !resolved.isLocal;
 
-    if (signedCover.ok) {
-      coverUrl = signedCover.url;
-    } else {
+    if (!resolved.url) {
       console.error("HOSTED PUBLICATION LOAD ERROR:", {
         slug,
         source: "cover_signed_url",
-        error: { status: signedCover.status, message: signedCover.message },
+        error: "signed URL request failed",
       });
     }
   } catch (error) {
@@ -272,7 +275,14 @@ export default async function PublicationPage({
 
   return (
     <PublicationTemplate
-      data={toTemplateDataFromHosted(hosted, coverUrl, pdfPreviewUrl, pdfDownloadUrl, isDraftPreview)}
+      data={toTemplateDataFromHosted(
+        hosted,
+        coverUrl,
+        coverIsExternal,
+        pdfPreviewUrl,
+        pdfDownloadUrl,
+        isDraftPreview
+      )}
     />
   );
 }

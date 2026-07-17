@@ -1,3 +1,5 @@
+import type { PublicationSection } from "@/lib/content/types";
+
 export type ApplicationStatus = "pending" | "accepted" | "rejected";
 
 export interface InnerCircleApplication {
@@ -55,6 +57,11 @@ export interface Publication {
   /** Library placement — controls the Featured Intelligence shelf. See app/library/page.tsx. */
   featured: boolean;
   featured_order: number | null;
+  /** Long-form sectioned body content (e.g. a promoted static publication's chapter excerpts). See lib/content/types.ts's PublicationSection. Added by ES-008A. */
+  content: PublicationSection[] | null;
+  /** External-only access (e.g. a Kindle listing) for publications with no hosted PDF. Added by ES-008A. */
+  external_link_label: string | null;
+  external_link_url: string | null;
 }
 
 export interface PublicationWithPreview extends Publication {
