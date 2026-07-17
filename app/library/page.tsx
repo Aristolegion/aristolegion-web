@@ -7,6 +7,7 @@ import { Divider } from "@/components/ui/Divider";
 import { Eyebrow } from "@/components/ui/Eyebrow";
 import { SectionHeading } from "@/components/ui/SectionHeading";
 import { essays } from "@/lib/content/essays";
+import { frameworks as staticFrameworks } from "@/lib/content/library";
 import { getPublicationDisplayCategory } from "@/lib/content/publicationEnhancements";
 import type { Framework } from "@/lib/content/types";
 import { resolveCoverImage, supabaseSelect } from "@/lib/supabase";
@@ -160,16 +161,26 @@ interface LibraryFrameworkCard {
 
 // Reads from the canonical `frameworks` table (RFC-003 Knowledge Graph
 // schema, supabase/migrations/0003_knowledge_graph_schema.sql /
-// 0005_graph_bootstrap.sql), replacing the static lib/content/library.ts
-// `frameworks` array per ES-008A and EDR-001.
+// 0005_graph_bootstrap.sql), per ES-008A and EDR-001.
 //
-// Deployment note: as of ES-008A, migrations 0003-0005 have been merged
-// but NOT YET APPLIED to production (a pre-existing, separately-tracked
-// gap — see the ES-008A completion report). Until they are applied, this
-// query fails against a table that does not yet exist; the try/catch
-// below degrades to an empty list exactly like every other Library query
-// on this page, and the whole section is omitted rather than rendering an
-// empty heading — see the `frameworks.length > 0` guard below.
+// STAGED DEPLOYMENT (ES-008A revision) — as of this writing, migrations
+// 0003-0005 have been merged but NOT YET APPLIED to production. Cutting
+// the Framework shelf over to the DB in a single step, with no fallback,
+// would render it empty in production for an unbounded window (however
+// long it takes an operator to apply those migrations) — a real,
+// user-visible content regression, not just a theoretical one. Per
+// EDR-001 ("static files are a transitional compatibility layer...
+// retired after migration and cutover"), retirement happens after
+// cutover is verified, not merely after the migration is authored — so
+// this function queries the DB first, and falls back to the static
+// `frameworks` array (lib/content/library.ts) only if that query fails or
+// returns zero rows. Production behavior is therefore unchanged until
+// 0003-0006 are applied; the moment the DB has rows, this function starts
+// using them automatically, with no further deploy required.
+//
+// TRANSITIONAL: remove this fallback (and the static `frameworks` array
+// it reads from) once 0003-0006 have been applied to production and
+// verified — do not remove it before then.
 async function getFrameworks(): Promise<LibraryFrameworkCard[]> {
   try {
     const result = await supabaseSelect<{ title: string; description: string; status: string }>(
@@ -177,7 +188,7 @@ async function getFrameworks(): Promise<LibraryFrameworkCard[]> {
       { order: "created_at.asc" }
     );
 
-    if (result.ok) {
+    if (result.ok && result.data.length > 0) {
       return result.data.map((row) => ({
         title: row.title,
         description: row.description,
@@ -185,15 +196,20 @@ async function getFrameworks(): Promise<LibraryFrameworkCard[]> {
       }));
     }
 
-    console.error("LIBRARY FRAMEWORKS FETCH ERROR:", {
-      status: result.status,
-      message: result.message,
-    });
+    if (!result.ok) {
+      console.error("LIBRARY FRAMEWORKS FETCH ERROR:", {
+        status: result.status,
+        message: result.message,
+      });
+    }
   } catch (error) {
     console.error("LIBRARY FRAMEWORKS FETCH ERROR:", error);
   }
 
-  return [];
+  // Fallback: DB query failed, or 0003-0006 haven't been applied to
+  // production yet (an empty/missing table looks identical to zero rows
+  // from here) — see the STAGED DEPLOYMENT note above.
+  return staticFrameworks;
 }
 
 interface LibraryEssayCard {
