@@ -328,6 +328,26 @@ export async function supabaseCreateSignedUrl(
 }
 
 /**
+ * Resolves a publication/essay cover for display, transparently handling
+ * both storage modes the "publications" bucket columns can hold: a
+ * Supabase Storage object key (signed, short-lived, the common case) or a
+ * local public asset path starting with "/" (e.g. a static publication
+ * promoted into the canonical table per ES-008A, whose existing image was
+ * never uploaded to Storage). Signing a local path would be both
+ * unnecessary and wrong, since no such object exists in the bucket.
+ */
+export async function resolveCoverImage(
+  bucket: string,
+  coverPath: string | null,
+  expiresInSeconds: number
+): Promise<{ url: string | null; isLocal: boolean }> {
+  if (!coverPath) return { url: null, isLocal: false };
+  if (coverPath.startsWith("/")) return { url: coverPath, isLocal: true };
+  const signed = await supabaseCreateSignedUrl(bucket, coverPath, expiresInSeconds);
+  return { url: signed.ok ? signed.url : null, isLocal: false };
+}
+
+/**
  * Creates a short-lived signed upload URL so the browser can PUT a file
  * (PDF or cover image) straight to Supabase Storage, bypassing the Vercel
  * function body-size limit entirely — our API route never sees the file

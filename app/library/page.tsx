@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import Image from "next/image";
 import { Container } from "@/components/layout/Container";
 import { PageShell } from "@/components/layout/PageShell";
 import { Section } from "@/components/layout/Section";
@@ -8,10 +7,15 @@ import { Divider } from "@/components/ui/Divider";
 import { Eyebrow } from "@/components/ui/Eyebrow";
 import { SectionHeading } from "@/components/ui/SectionHeading";
 import { essays } from "@/lib/content/essays";
-import { frameworks, publications as staticPublications } from "@/lib/content/library";
 import { getPublicationDisplayCategory } from "@/lib/content/publicationEnhancements";
-import { supabaseCreateSignedUrl, supabaseSelect } from "@/lib/supabase";
-import type { Publication as HostedPublication } from "@/lib/sanctum/types";
+import type { Framework } from "@/lib/content/types";
+import { resolveCoverImage, supabaseSelect } from "@/lib/supabase";
+import type { Essay as HostedEssay, Publication as HostedPublication } from "@/lib/sanctum/types";
+
+// "The Glass Partition" is a Novel, not an Intelligence Journal — it gets
+// its own dedicated "Books" shelf below rather than appearing in the
+// Latest/Featured/Archive Intelligence tiers those are curated for.
+const BOOKS_SLUGS = new Set(["the-glass-partition"]);
 
 const PUBLICATIONS_BUCKET = "publications";
 const COVER_URL_TTL_SECONDS = 60 * 60; // 1 hour, regenerated on every request
@@ -57,19 +61,14 @@ interface LibraryPublicationCard {
   coverImage: string | null;
 }
 
-async function getSignedCoverUrl(coverPath: string | null): Promise<string | null> {
-  if (!coverPath) return null;
-  const signed = await supabaseCreateSignedUrl(PUBLICATIONS_BUCKET, coverPath, COVER_URL_TTL_SECONDS);
-  return signed.ok ? signed.url : null;
-}
-
 async function toLibraryCard(publication: HostedPublication): Promise<LibraryPublicationCard> {
+  const cover = await resolveCoverImage(PUBLICATIONS_BUCKET, publication.cover_image_url, COVER_URL_TTL_SECONDS);
   return {
     slug: publication.slug,
     title: publication.title,
     category: getPublicationDisplayCategory(publication.title, publication.category),
     description: publication.description,
-    coverImage: await getSignedCoverUrl(publication.cover_image_url),
+    coverImage: cover.url,
   };
 }
 
@@ -83,12 +82,17 @@ async function toLibraryCard(publication: HostedPublication): Promise<LibraryPub
 //    ordered by `featured_order` ascending (nulls fall back to newest
 //    first, i.e. the order they already arrive in from the query).
 // 3. Intelligence Archive — everything else, newest first.
+//
+// BOOKS_SLUGS (e.g. "The Glass Partition") are excluded from all three
+// tiers — they get their own dedicated Books shelf instead, so a Novel
+// never appears twice on the page under an Intelligence Journal heading.
 async function getLibraryPublications(): Promise<{
   latest: LibraryPublicationCard | null;
   featured: LibraryPublicationCard[];
   archive: LibraryPublicationCard[];
+  books: LibraryPublicationCard[];
 }> {
-  let hostedPublications: HostedPublication[] = [];
+  let allPublications: HostedPublication[] = [];
 
   try {
     const result = await supabaseSelect<HostedPublication>("publications", {
@@ -97,7 +101,7 @@ async function getLibraryPublications(): Promise<{
     });
 
     if (result.ok) {
-      hostedPublications = result.data;
+      allPublications = result.data;
     } else {
       console.error("LIBRARY PUBLICATIONS FETCH ERROR:", {
         status: result.status,
@@ -107,6 +111,15 @@ async function getLibraryPublications(): Promise<{
   } catch (error) {
     console.error("LIBRARY PUBLICATIONS FETCH ERROR:", error);
   }
+
+  const books: LibraryPublicationCard[] = [];
+  for (const publication of allPublications) {
+    if (BOOKS_SLUGS.has(publication.slug)) {
+      books.push(await toLibraryCard(publication));
+    }
+  }
+
+  const hostedPublications = allPublications.filter((publication) => !BOOKS_SLUGS.has(publication.slug));
 
   const latestPublication = hostedPublications[0] ?? null;
   const latest = latestPublication ? await toLibraryCard(latestPublication) : null;
@@ -136,7 +149,102 @@ async function getLibraryPublications(): Promise<{
     archive.push(await toLibraryCard(publication));
   }
 
-  return { latest, featured, archive };
+  return { latest, featured, archive, books };
+}
+
+interface LibraryFrameworkCard {
+  title: string;
+  description: string;
+  status: Framework["status"];
+}
+
+// Reads from the canonical `frameworks` table (RFC-003 Knowledge Graph
+// schema, supabase/migrations/0003_knowledge_graph_schema.sql /
+// 0005_graph_bootstrap.sql), replacing the static lib/content/library.ts
+// `frameworks` array per ES-008A and EDR-001.
+//
+// Deployment note: as of ES-008A, migrations 0003-0005 have been merged
+// but NOT YET APPLIED to production (a pre-existing, separately-tracked
+// gap — see the ES-008A completion report). Until they are applied, this
+// query fails against a table that does not yet exist; the try/catch
+// below degrades to an empty list exactly like every other Library query
+// on this page, and the whole section is omitted rather than rendering an
+// empty heading — see the `frameworks.length > 0` guard below.
+async function getFrameworks(): Promise<LibraryFrameworkCard[]> {
+  try {
+    const result = await supabaseSelect<{ title: string; description: string; status: string }>(
+      "frameworks",
+      { order: "created_at.asc" }
+    );
+
+    if (result.ok) {
+      return result.data.map((row) => ({
+        title: row.title,
+        description: row.description,
+        status: row.status as Framework["status"],
+      }));
+    }
+
+    console.error("LIBRARY FRAMEWORKS FETCH ERROR:", {
+      status: result.status,
+      message: result.message,
+    });
+  } catch (error) {
+    console.error("LIBRARY FRAMEWORKS FETCH ERROR:", error);
+  }
+
+  return [];
+}
+
+interface LibraryEssayCard {
+  slug: string;
+  category: string;
+  title: string;
+  excerpt: string;
+}
+
+// Mirrors app/essays/page.tsx's static+hosted merge — the Essays &
+// Briefings shelf here previously read only the static `essays` array, so
+// it went silently empty once ES-008A promoted all three static essays
+// into the canonical `essays` table. Hosted essays carry no category
+// column (see supabase/migrations/0006_promote_static_content.sql's
+// header note), so they use the same "Essay" label app/essays/page.tsx
+// already established for hosted essays.
+async function getLibraryEssays(): Promise<LibraryEssayCard[]> {
+  const hostedItems: LibraryEssayCard[] = [];
+
+  try {
+    const result = await supabaseSelect<HostedEssay>("essays", {
+      filter: { status: "eq.published" },
+    });
+
+    if (result.ok) {
+      for (const essay of result.data) {
+        hostedItems.push({
+          slug: essay.slug,
+          category: "Essay",
+          title: essay.title,
+          excerpt: essay.excerpt,
+        });
+      }
+    } else {
+      console.error("LIBRARY ESSAYS FETCH ERROR:", {
+        status: result.status,
+        message: result.message,
+      });
+    }
+  } catch (error) {
+    console.error("LIBRARY ESSAYS FETCH ERROR:", error);
+  }
+
+  const staticItems: LibraryEssayCard[] = essays.map((essay) => ({
+    slug: essay.slug,
+    category: essay.category,
+    title: essay.title,
+    excerpt: essay.excerpt,
+  }));
+
+  return [...hostedItems, ...staticItems];
 }
 
 export default async function LibraryPage() {
@@ -144,10 +252,11 @@ export default async function LibraryPage() {
     latest: latestIntelligence,
     featured: featuredIntelligence,
     archive: archivePublications,
+    books,
   } = await getLibraryPublications();
-  const glassPartition = staticPublications.find(
-    (publication) => publication.slug === "the-glass-partition"
-  );
+  const frameworks = await getFrameworks();
+  const libraryEssays = await getLibraryEssays();
+  const [glassPartition] = books;
 
   return (
     <PageShell>
@@ -328,38 +437,40 @@ export default async function LibraryPage() {
         </Section>
       )}
 
-      <Section id="frameworks" background="ivory">
-        <Container>
-          <SectionHeading
-            eyebrow="Proprietary Frameworks"
-            title="Capability Systems"
-            description="Original Aristolegion models examining how capability, judgment, and human advantage compound over time."
-            tone="ivory"
-          />
+      {frameworks.length > 0 && (
+        <Section id="frameworks" background="ivory">
+          <Container>
+            <SectionHeading
+              eyebrow="Proprietary Frameworks"
+              title="Capability Systems"
+              description="Original Aristolegion models examining how capability, judgment, and human advantage compound over time."
+              tone="ivory"
+            />
 
-          <ul className="mt-12 grid gap-6 md:grid-cols-3">
-            {frameworks.map((framework) => (
-              <li key={framework.title}>
-                <Card tone="ivory" className="p-6">
-                  <p
-                    className={`font-body text-xs font-medium uppercase tracking-[0.15em] ${
-                      framework.status === "Published" ? "text-gold" : "text-charcoal/60"
-                    }`}
-                  >
-                    {framework.status}
-                  </p>
-                  <h3 className="mt-3 font-display text-lg font-semibold text-charcoal">
-                    {framework.title}
-                  </h3>
-                  <p className="mt-3 font-body text-sm leading-relaxed text-charcoal/70">
-                    {framework.description}
-                  </p>
-                </Card>
-              </li>
-            ))}
-          </ul>
-        </Container>
-      </Section>
+            <ul className="mt-12 grid gap-6 md:grid-cols-3">
+              {frameworks.map((framework) => (
+                <li key={framework.title}>
+                  <Card tone="ivory" className="p-6">
+                    <p
+                      className={`font-body text-xs font-medium uppercase tracking-[0.15em] ${
+                        framework.status === "Published" ? "text-gold" : "text-charcoal/60"
+                      }`}
+                    >
+                      {framework.status}
+                    </p>
+                    <h3 className="mt-3 font-display text-lg font-semibold text-charcoal">
+                      {framework.title}
+                    </h3>
+                    <p className="mt-3 font-body text-sm leading-relaxed text-charcoal/70">
+                      {framework.description}
+                    </p>
+                  </Card>
+                </li>
+              ))}
+            </ul>
+          </Container>
+        </Section>
+      )}
 
       <Section id="essays-briefings" background="navy">
         <Container>
@@ -371,7 +482,7 @@ export default async function LibraryPage() {
           />
 
           <ul className="mt-12 grid gap-8 md:grid-cols-3">
-            {essays.map((essay) => (
+            {libraryEssays.map((essay) => (
               <li key={essay.slug}>
                 <Card href={`/essays/${essay.slug}`} tone="navy" className="p-6">
                   <Eyebrow className="mb-2">{essay.category}</Eyebrow>
@@ -404,13 +515,18 @@ export default async function LibraryPage() {
               <li>
                 <Card href={`/library/${glassPartition.slug}`} tone="ivory">
                   <div className="relative aspect-[3/4] overflow-hidden bg-charcoal">
-                    <Image
-                      src={glassPartition.coverImage}
-                      alt={glassPartition.title}
-                      fill
-                      className="object-cover transition-transform duration-500 group-hover:scale-105"
-                      sizes="(min-width: 640px) 384px, 100vw"
-                    />
+                    {glassPartition.coverImage ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={glassPartition.coverImage}
+                        alt={glassPartition.title}
+                        className="absolute inset-0 h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+                      />
+                    ) : (
+                      <div className="absolute inset-0 flex items-center justify-center p-6 text-center">
+                        <Eyebrow>Novel</Eyebrow>
+                      </div>
+                    )}
                   </div>
                   <div className="p-6">
                     <Eyebrow className="mb-2">Novel</Eyebrow>
