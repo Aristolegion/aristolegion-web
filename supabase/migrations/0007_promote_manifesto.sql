@@ -29,24 +29,64 @@
 -- establishes it once, permanently. No version history, no
 -- multi-manifesto support, per Task 1's explicit constraints.
 --
--- GRAPH INTEGRATION (Task 4) — this table's single row IS the canonical
--- Manifesto node RFC-003 requires (the same pattern `concepts`/`topics`/
--- `principles`/`frameworks` already establish: each first-class node type
--- is its own table, referenced polymorphically by graph_edges via
--- source_type/target_type). No graph_edges rows are inserted by this
--- migration. Checked against edge_type_definitions (seeded in 0003):
--- 'manifesto' appears as an applicable_source_type on exactly one
--- relationship type, `authored_by` — whose only applicable_target_type is
--- `founder`, a node type explicitly out of ES-008B's scope (no `founder`
--- table exists). No relationship type has 'manifesto' as an applicable
--- target_type at all, so a Principle -> Manifesto edge (e.g. for the 5
--- Principle sections already promoted in 0005) is equally unsupported
--- under the currently-approved vocabulary. Per Task 4's explicit
--- constraints ("do not infer relationships... do not create speculative
--- edges... do not introduce unsupported relationship types"), the correct
--- outcome is zero edges, not a workaround — extending
--- edge_type_definitions' applicable_source_types/applicable_target_types
--- to cover this is a schema decision for a future spec, not this one.
+-- GRAPH INTEGRATION NOTE (Task 4) — this table's single row IS the
+-- canonical Manifesto node RFC-003 requires (Manifesto is one of RFC-003's
+-- 8 first-class Knowledge Graph node types; this follows the same pattern
+-- `concepts`/`topics`/`principles`/`frameworks` already establish: each
+-- first-class node type is its own table, referenced polymorphically by
+-- graph_edges via source_type/target_type — no separate "node" table is
+-- needed).
+--
+-- The Manifesto node is intentionally created as an ISOLATED node: no
+-- graph_edges rows are inserted by this migration, and as of this
+-- migration the Manifesto is not reachable via any graph traversal (only
+-- by direct query on its slug). This is an intentional architectural
+-- decision governed by the approved Knowledge Graph vocabulary, NOT an
+-- implementation omission — every one of the 10 relationship types seeded
+-- in edge_type_definitions (0003_knowledge_graph_schema.sql) was checked
+-- against 'manifesto' as both a possible source and target before
+-- concluding this:
+--
+--   relationship_type   | applicable_source_types                                  | applicable_target_types
+--   --------------------+-----------------------------------------------------------+-------------------------------------------
+--   belongs_to          | [concept]                                                 | [topic]
+--   authored_by         | [publication, essay, framework, manifesto, principle]    | [founder]
+--   introduces          | [publication]                                             | [framework]
+--   references          | [essay, publication]                                      | [framework, publication, essay, concept]
+--   explains             | [essay, publication]                                      | [concept]
+--   supports             | [essay, publication]                                      | [principle, framework, concept]
+--   operationalizes      | [framework]                                               | [principle]
+--   expands               | [essay, publication]                                      | [essay, publication]
+--   evolves_into          | [framework]                                               | [framework]
+--   contains              | [publication]                                             | [evidence]
+--
+-- 'manifesto' appears exactly once across all 20 arrays above — as an
+-- applicable_source_type on `authored_by` only, whose sole
+-- applicable_target_type is `founder`, a node type explicitly out of
+-- ES-008B's scope (no `founder` table exists yet). 'manifesto' does not
+-- appear as an applicable_target_type on any relationship type, so a
+-- Principle -> Manifesto edge (e.g. for the 5 Principle sections already
+-- promoted in 0005_graph_bootstrap.sql) is equally unsupported today. Per
+-- Task 4's explicit constraints ("do not infer relationships... do not
+-- create speculative edges... do not introduce unsupported relationship
+-- types"), zero edges is the correct, complete outcome under the current
+-- vocabulary — not a workaround, and not something a later revision of
+-- *this* migration should "fix" by reinterpreting an existing
+-- relationship type's semantics.
+--
+-- FUTURE GRAPH CONNECTIVITY — expected via two paths, neither exercised
+-- here: (1) once a `founder` node/table exists (a currently unscoped
+-- future spec), the Manifesto -> authored_by -> Founder edge requires NO
+-- schema change — `authored_by` already lists 'manifesto' as a valid
+-- source, so it becomes a plain data insert once Founder exists; (2) any
+-- other Manifesto relationship (e.g. Manifesto <-> Principle) requires a
+-- dedicated future spec to extend edge_type_definitions'
+-- applicable_source_types/applicable_target_types — a Graph-layer
+-- architecture decision (RFC-003 Amendment 4: every relationship type's
+-- directional/transitive/unique/confidence-aware/time-dependent semantics
+-- must be decided deliberately) that is out of scope for a content-
+-- promotion migration and would violate the one-architectural-layer-per-
+-- spec rule if bundled into this one.
 --
 -- TASK 3 NOTE — "Origin", "Core Values", and "A Call to Reflection" (the
 -- three sections ES-007 excluded from becoming Principles) get no
