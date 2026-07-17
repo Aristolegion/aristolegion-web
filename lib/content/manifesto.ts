@@ -1,5 +1,21 @@
 import type { PublicationSection } from "./types";
 
+// TRANSITIONAL — ES-008B staged deployment. The canonical `manifesto`
+// table (supabase/migrations/0007_promote_manifesto.sql) is merged but
+// not yet applied to production. app/manifesto/page.tsx's
+// getManifestoSections() queries the DB first and falls back to this
+// array only if that query fails or returns no row, so /manifesto keeps
+// rendering today's content with no visible regression until the
+// migration is applied. Per EDR-001, this array is transitional: remove
+// it (and the fallback branch in getManifestoSections()) once 0007 has
+// been applied to production and verified — do not remove it before then.
+// Values are identical, verbatim, to what 0007_promote_manifesto.sql
+// inserts into the `manifesto` table.
+//
+// TODO(ES-008B): remove this array once migration 0007 is applied to
+// production and verified. Per EDR-001, the database becomes the
+// canonical knowledge store only after successful migration and
+// verification — not merely after merge.
 export const manifestoSections: PublicationSection[] = [
   {
     heading: "Origin",
