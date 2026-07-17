@@ -209,6 +209,12 @@ async function getFrameworks(): Promise<LibraryFrameworkCard[]> {
   // Fallback: DB query failed, or 0003-0006 haven't been applied to
   // production yet (an empty/missing table looks identical to zero rows
   // from here) — see the STAGED DEPLOYMENT note above.
+  //
+  // TODO(ES-008A): remove this fallback (and lib/content/library.ts's
+  // `frameworks` array) once migrations 0003-0006 are applied to
+  // production and verified. Per EDR-001, the database becomes the
+  // canonical knowledge store only after successful migration and
+  // verification — not merely after merge.
   return staticFrameworks;
 }
 

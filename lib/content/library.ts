@@ -23,6 +23,11 @@ export function getPublication(slug: string): Publication | undefined {
 // once 0003-0006 have been applied to production and verified — do not
 // remove it before then. Values are identical, verbatim, to what
 // 0005_graph_bootstrap.sql inserts into the `frameworks` table.
+//
+// TODO(ES-008A): remove this array once migrations 0003-0006 are applied
+// to production and verified. Per EDR-001, the database becomes the
+// canonical knowledge store only after successful migration and
+// verification — not merely after merge.
 export const frameworks: Framework[] = [
   {
     title: "Capability Dividend™",
