@@ -7,7 +7,6 @@ import { Divider } from "@/components/ui/Divider";
 import { Eyebrow } from "@/components/ui/Eyebrow";
 import { SectionHeading } from "@/components/ui/SectionHeading";
 import { essays } from "@/lib/content/essays";
-import { frameworks as staticFrameworks } from "@/lib/content/library";
 import { getPublicationDisplayCategory } from "@/lib/content/publicationEnhancements";
 import type { Framework } from "@/lib/content/types";
 import { resolveCoverImage, supabaseSelect } from "@/lib/supabase";
@@ -161,26 +160,11 @@ interface LibraryFrameworkCard {
 
 // Reads from the canonical `frameworks` table (RFC-003 Knowledge Graph
 // schema, supabase/migrations/0003_knowledge_graph_schema.sql /
-// 0005_graph_bootstrap.sql), per ES-008A and EDR-001.
-//
-// STAGED DEPLOYMENT (ES-008A revision) — as of this writing, migrations
-// 0003-0005 have been merged but NOT YET APPLIED to production. Cutting
-// the Framework shelf over to the DB in a single step, with no fallback,
-// would render it empty in production for an unbounded window (however
-// long it takes an operator to apply those migrations) — a real,
-// user-visible content regression, not just a theoretical one. Per
-// EDR-001 ("static files are a transitional compatibility layer...
-// retired after migration and cutover"), retirement happens after
-// cutover is verified, not merely after the migration is authored — so
-// this function queries the DB first, and falls back to the static
-// `frameworks` array (lib/content/library.ts) only if that query fails or
-// returns zero rows. Production behavior is therefore unchanged until
-// 0003-0006 are applied; the moment the DB has rows, this function starts
-// using them automatically, with no further deploy required.
-//
-// TRANSITIONAL: remove this fallback (and the static `frameworks` array
-// it reads from) once 0003-0006 have been applied to production and
-// verified — do not remove it before then.
+// 0005_graph_bootstrap.sql), per ES-008A and EDR-001. Migrations
+// 0003-0007 were applied to and verified in production on 2026-07-24 —
+// the static fallback this function previously used during the staged
+// deployment window has been removed (see git history for
+// getFrameworks() prior to that date if it's ever needed for reference).
 async function getFrameworks(): Promise<LibraryFrameworkCard[]> {
   try {
     const result = await supabaseSelect<{ title: string; description: string; status: string }>(
@@ -188,7 +172,7 @@ async function getFrameworks(): Promise<LibraryFrameworkCard[]> {
       { order: "created_at.asc" }
     );
 
-    if (result.ok && result.data.length > 0) {
+    if (result.ok) {
       return result.data.map((row) => ({
         title: row.title,
         description: row.description,
@@ -196,26 +180,15 @@ async function getFrameworks(): Promise<LibraryFrameworkCard[]> {
       }));
     }
 
-    if (!result.ok) {
-      console.error("LIBRARY FRAMEWORKS FETCH ERROR:", {
-        status: result.status,
-        message: result.message,
-      });
-    }
+    console.error("LIBRARY FRAMEWORKS FETCH ERROR:", {
+      status: result.status,
+      message: result.message,
+    });
   } catch (error) {
     console.error("LIBRARY FRAMEWORKS FETCH ERROR:", error);
   }
 
-  // Fallback: DB query failed, or 0003-0006 haven't been applied to
-  // production yet (an empty/missing table looks identical to zero rows
-  // from here) — see the STAGED DEPLOYMENT note above.
-  //
-  // TODO(ES-008A): remove this fallback (and lib/content/library.ts's
-  // `frameworks` array) once migrations 0003-0006 are applied to
-  // production and verified. Per EDR-001, the database becomes the
-  // canonical knowledge store only after successful migration and
-  // verification — not merely after merge.
-  return staticFrameworks;
+  return [];
 }
 
 interface LibraryEssayCard {
