@@ -83,6 +83,73 @@ export async function supabaseInsert(
   return { ok: true };
 }
 
+/**
+ * Upsert via PostgREST's native on_conflict resolution — used by the
+ * ES-010 reconciliation worker to write node_embeddings rows
+ * idempotently (insert if new, update if the unique constraint on
+ * (node_type, node_id, chunk_index, model) already matches a row).
+ */
+export async function supabaseUpsert(
+  table: string,
+  row: Record<string, unknown>,
+  onConflict: string
+): Promise<SupabaseInsertResult> {
+  const { url, key } = requireConfig();
+
+  const params = new URLSearchParams({ on_conflict: onConflict });
+
+  const response = await fetch(`${url}/rest/v1/${table}?${params.toString()}`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      apikey: key,
+      Authorization: `Bearer ${key}`,
+      Prefer: "resolution=merge-duplicates,return=minimal",
+    },
+    body: JSON.stringify(row),
+    cache: "no-store",
+  });
+
+  if (!response.ok) {
+    const message = await response.text().catch(() => "");
+    return { ok: false, status: response.status, message };
+  }
+
+  return { ok: true };
+}
+
+/**
+ * Calls a Postgres function exposed via PostgREST's /rest/v1/rpc/
+ * endpoint (e.g. match_node_embeddings, ES-010) — the only way to
+ * invoke pgvector similarity search, since its distance operators
+ * aren't expressible through PostgREST's standard filter syntax.
+ */
+export async function supabaseRpc<T = Record<string, unknown>>(
+  fn: string,
+  args: Record<string, unknown>
+): Promise<SupabaseSelectResult<T>> {
+  const { url, key } = requireConfig();
+
+  const response = await fetch(`${url}/rest/v1/rpc/${fn}`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      apikey: key,
+      Authorization: `Bearer ${key}`,
+    },
+    body: JSON.stringify(args),
+    cache: "no-store",
+  });
+
+  if (!response.ok) {
+    const message = await response.text().catch(() => "");
+    return { ok: false, status: response.status, message };
+  }
+
+  const data = (await response.json()) as T[];
+  return { ok: true, data };
+}
+
 export async function supabaseSelect<T = Record<string, unknown>>(
   table: string,
   options: { order?: string; filter?: Record<string, string> } = {}
