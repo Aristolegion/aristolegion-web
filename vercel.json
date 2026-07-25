@@ -1,8 +1,0 @@
-{
-  "crons": [
-    {
-      "path": "/api/internal/embeddings/reconcile",
-      "schedule": "0 * * * *"
-    }
-  ]
-}
