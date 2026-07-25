@@ -33,13 +33,29 @@
 --      Essays can never link directly to a Topic; Topics are reachable in
 --      the graph only through a Concept's `belongs_to` edge.
 --
--- CONCEPTS ACCEPTED (4) — each directly evidenced, verbatim-titled:
+-- CONCEPTS ACCEPTED (3) — each directly evidenced, verbatim-titled:
 --   - Information Abundance (essay judgment-in-the-age-of-information-
 --     abundance)
 --   - The Proxy Problem (essay capability-over-credentials)
 --   - Deep Work (essay the-return-of-deep-work)
---   - Intelligence Is Becoming Abundant (publication the-judgment-economy,
---     its own key_insights[0].title, verbatim)
+--
+-- A 4th candidate, "Intelligence Is Becoming Abundant" (publication
+-- the-judgment-economy, key_insights[0].title), was drafted and then
+-- rejected on ontology review before this migration reached its final
+-- form:
+--   - Structural: key_insights is a 3-entry array on one row, each entry
+--     an equally-unelaborated title + one-sentence description. Entry
+--     [0] was accepted while entry [2] was excluded for being "one
+--     unelaborated sentence" — an inconsistent standard, since entry [0]
+--     is exactly as unelaborated. Entry [1] was not addressed at all in
+--     the original exclusion list (a silent drop); it is added below.
+--   - Substantive: its content — abundant intelligence shifting
+--     advantage to judgment — is the same claim as the already-accepted
+--     Information Abundance concept, just with "intelligence" swapped
+--     for "information." The publication's own `central_question` and
+--     `intelligence_brief` restate that same thesis, which is stronger
+--     evidence for a publication -> explains -> concept(information-
+--     abundance) edge than for a second, duplicate Concept node.
 --
 -- CONCEPTS CONSIDERED AND EXCLUDED, not silently dropped:
 --   - "Judgment as a Trainable Discipline" (essay 1) and "Capability >
@@ -55,6 +71,14 @@
 --   - "Talent Deficit" (Employability Fracture publication) — one
 --     sentence, no elaboration anywhere (intelligence_brief etc. are
 --     null on that row). Insufficient evidentiary depth.
+--   - "Intelligence Is Becoming Abundant" (Judgment Economy's 1st
+--     key_insight) — see rejection rationale above; duplicate of
+--     Information Abundance.
+--   - "Judgment Becomes The Differentiator" (Judgment Economy's 2nd
+--     key_insight) — one unelaborated sentence, sibling in the same
+--     key_insights array as the two entries above, same depth problem;
+--     substantively a restatement of the judgment-scarcity theme already
+--     carried by Information Abundance and philosophy-of-judgment.
 --   - "The Future Belongs To Augmented Thinkers" (Judgment Economy's 3rd
 --     key_insight) — one unelaborated sentence, not cross-referenced
 --     elsewhere in the corpus.
@@ -69,6 +93,13 @@
 -- convention for confidence_aware types — not zero); no confidence-
 -- scoring methodology exists in this migration's scope.
 --
+-- Deep Work carries a `belongs_to` edge to topic `future-of-work`: the
+-- essay's own second section ("Why Depth Is Becoming a Competitive
+-- Advantage") is directly about automation absorbing shallow work, which
+-- is a near-exact match for that topic's own summary ("how careers...
+-- evolve in an age of acceleration"). This is a directly-evidenced fit,
+-- not a forced one.
+--
 -- No essay/publication/principle/topic row referenced below is modified
 -- — this migration only inserts into `concepts` (previously empty) and
 -- `graph_edges` (previously containing only 2 unrelated `introduces`
@@ -77,15 +108,14 @@
 --
 -- ROLLBACK
 -- To fully reverse this migration, run the following as a new, forward-
--- numbered migration (never edit this file in place):
+-- numbered migration (never edit this file in place once merged):
 --
 --   BEGIN;
 --   DELETE FROM public.graph_edges WHERE relationship_type IN ('explains', 'supports', 'belongs_to');
 --   DELETE FROM public.concepts WHERE slug IN (
 --     'information-abundance',
 --     'the-proxy-problem',
---     'deep-work',
---     'intelligence-is-becoming-abundant'
+--     'deep-work'
 --   );
 --   COMMIT;
 --
@@ -93,12 +123,7 @@
 -- all had zero rows in graph_edges (confirmed live before this file was
 -- written — the only 2 existing rows are both `introduces`), and
 -- `concepts` was empty, so this rollback returns both tables to that
--- exact prior state. This migration and the above rollback were validated
--- together in a single, uncommitted transaction against production before
--- this file was written — an earlier draft of this rollback omitted
--- `belongs_to` and was caught by that validation leaving 3 orphaned edges
--- behind, corrected before this file reached its final form; see the
--- ES-009 completion report / PR body for the full validation transcript.
+-- exact prior state.
 
 BEGIN;
 
@@ -121,11 +146,6 @@ insert into concepts (title, slug, summary) values
     'Deep Work',
     'deep-work',
     'Sustained, undistracted attention is a trained capacity that compounds into a scarce competitive advantage as fragmented, shallow work is automated away.'
-  ),
-  (
-    'Intelligence Is Becoming Abundant',
-    'intelligence-is-becoming-abundant',
-    'As artificial intelligence reduces the cost of information, analysis, and creation, advantage shifts from accessing intelligence to applying judgment to it.'
   );
 
 -- -----------------------------------------------------------------------
@@ -174,27 +194,26 @@ from essays e, principles p
 where e.slug = 'capability-over-credentials'
   and p.slug = 'philosophy-of-capability';
 
--- 7. essay -> explains -> concept (Deep Work) — no belongs_to edge: no
--- Topic is directly evidenced as a fit for this concept.
+-- 7. essay -> explains -> concept (Deep Work)
 insert into graph_edges (source_type, source_id, target_type, target_id, relationship_type, confidence)
 select 'essay', e.id, 'concept', c.id, 'explains', null
 from essays e, concepts c
 where e.slug = 'the-return-of-deep-work'
   and c.slug = 'deep-work';
 
--- 8. publication -> explains -> concept (Intelligence Is Becoming Abundant)
+-- 8. concept -> belongs_to -> topic (Deep Work -> Future of Work)
+insert into graph_edges (source_type, source_id, target_type, target_id, relationship_type, confidence)
+select 'concept', c.id, 'topic', t.id, 'belongs_to', null
+from concepts c, topics t
+where c.slug = 'deep-work'
+  and t.slug = 'future-of-work';
+
+-- 9. publication -> explains -> concept (Judgment Economy -> Information Abundance)
 insert into graph_edges (source_type, source_id, target_type, target_id, relationship_type, confidence)
 select 'publication', pub.id, 'concept', c.id, 'explains', null
 from publications pub, concepts c
 where pub.slug = 'the-judgment-economy'
-  and c.slug = 'intelligence-is-becoming-abundant';
-
--- 9. concept -> belongs_to -> topic (Intelligence Is Becoming Abundant -> Judgment)
-insert into graph_edges (source_type, source_id, target_type, target_id, relationship_type, confidence)
-select 'concept', c.id, 'topic', t.id, 'belongs_to', null
-from concepts c, topics t
-where c.slug = 'intelligence-is-becoming-abundant'
-  and t.slug = 'judgment';
+  and c.slug = 'information-abundance';
 
 -- 10. publication -> supports -> principle (Judgment Economy -> Philosophy of Judgment)
 insert into graph_edges (source_type, source_id, target_type, target_id, relationship_type, confidence)
