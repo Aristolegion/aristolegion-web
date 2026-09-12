@@ -86,7 +86,27 @@ export async function POST(request: Request) {
   }
 
   // §C — retrieval boundary. matchCount: 10 is explicit, per the CTO-ratified decision.
-  const retrievalOutcome = await retrieve(trimmedQuestion, { matchCount: 10 });
+  // Wrapped in try/catch because retrieve() can throw rather than return
+  // {ok:false} for at least one precondition inside ES-011's own embedding
+  // step (a missing OPENAI_API_KEY throws synchronously in
+  // lib/embeddings/provider.ts, uncaught by lib/retrieval/index.ts). ES-011
+  // is frozen and is not the place to fix that — from Advisor's side, a
+  // thrown retrieval exception is the same class of event as retrieve()
+  // itself reporting {ok:false}: retrieval could not be completed, there is
+  // no evidence to judge, and generation must not run. Both paths now
+  // resolve to the identical public contract.
+  let retrievalOutcome;
+  try {
+    retrievalOutcome = await retrieve(trimmedQuestion, { matchCount: 10 });
+  } catch (error) {
+    console.error("[advisor] retrieval threw instead of returning a result", {
+      message: error instanceof Error ? error.message : "unknown",
+    });
+    return Response.json(
+      { success: false, error: "We could not process your question right now. Please try again." },
+      { status: 502 }
+    );
+  }
 
   if (!retrievalOutcome.ok) {
     // RFC-007 state 1, Retrieval Failure. Never presented as insufficient
