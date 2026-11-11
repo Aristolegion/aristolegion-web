@@ -70,7 +70,3 @@ export async function admitLoginAttempt(request: Request): Promise<Admission> {
   return { allowed: count <= MAX_ATTEMPTS, retryAfterSeconds: count <= MAX_ATTEMPTS ? 0 : Math.max(1, Math.ceil(ttl / 1000)), key };
 }
 
-export async function clearLoginAttempts(key: string): Promise<void> {
-  const result = await redisCommand(["DEL", key]);
-  if (result !== 0 && result !== 1) throw new Error("Invalid Redis reset response");
-}
