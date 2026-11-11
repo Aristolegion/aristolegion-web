@@ -42,7 +42,7 @@ export async function POST(request: Request) {
     );
   }
 
-  const { password } = payload;
+  if (!payload || typeof payload !== "object" || Array.isArray(payload)) {\n    return Response.json({ success: false, error: "Invalid request." }, { status: 400 });\n  }\n  const { password } = payload;
 
   if (typeof password !== "string" || !verifyAdminPassword(password)) {
     return Response.json(
