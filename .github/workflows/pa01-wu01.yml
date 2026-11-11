@@ -32,7 +32,7 @@ jobs:
       - name: Install locked dependencies
         run: npm ci --ignore-scripts
       - name: Run legacy behavioral characterization (expected GREEN)
-        run: node --test tests/security/legacy-behavior.test.cjs
+        run: node --test tests/security/legacy-behavior.test.mjs
       - name: Run future-state contract checks (expected RED; report actual exit code)
         shell: bash
         run: |
@@ -49,13 +49,10 @@ jobs:
           echo "::notice::RED is expected until D1-D4 are implemented. Review each failure in the logs."
       - name: Lint baseline
         if: always()
-        continue-on-error: true
         run: npm run lint
       - name: TypeScript baseline
         if: always()
-        continue-on-error: true
         run: npx tsc --noEmit
       - name: Build baseline (may need non-production environment variables)
         if: always()
-        continue-on-error: true
         run: npm run build
