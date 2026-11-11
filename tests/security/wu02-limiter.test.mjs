@@ -52,11 +52,15 @@ test("WU-02: five attempts admitted, sixth blocked with Retry-After", async () =
   assert.ok(f.commands.every(cmd => cmd === "EVAL"));
 });
 
-test("WU-02: successful authentication can clear the counter", async () => {
+test("WU-02: concurrent admissions never erase another attempt", async () => {
   const f = fixture();
   const first = await f.api.admitLoginAttempt(f.request());
-  await f.api.clearLoginAttempts(first.key);
-  assert.equal((await f.api.admitLoginAttempt(f.request())).allowed, true);
+  const second = await f.api.admitLoginAttempt(f.request());
+  assert.equal(first.allowed, true);
+  assert.equal(second.allowed, true);
+  assert.equal(f.counters.get(first.key), 2);
+  assert.equal(typeof f.api.clearLoginAttempts, "undefined");
+  assert.equal(f.commands.includes("DEL"), false);
 });
 
 test("WU-02: client identity is hashed and different clients are separated", async () => {
