@@ -1,0 +1,61 @@
+name: PA-01 WU-01 Security Baseline
+on:
+  push:
+    branches: [security/pa01-foundation]
+    paths:
+      - '.github/workflows/pa01-wu01.yml'
+      - 'tests/security/**'
+      - 'lib/sanctum/**'
+      - 'app/api/sanctum/**'
+      - 'package.json'
+      - 'package-lock.json'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  baseline:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      CI: 'true'
+      NEXT_TELEMETRY_DISABLED: '1'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Install locked dependencies
+        run: npm ci --ignore-scripts
+      - name: Run legacy behavioral characterization (expected GREEN)
+        run: node --test tests/security/legacy-behavior.test.cjs
+      - name: Run future-state contract checks (expected RED; report actual exit code)
+        shell: bash
+        run: |
+          set +e
+          node --test tests/security/pa01-baseline.test.mjs
+          status=$?
+          echo "PA-01 future-state contract suite exit code: $status"
+          if [ "$status" -eq 0 ]; then
+            echo "::warning::Future-state tests unexpectedly all passed; review test integrity."
+          elif [ "$status" -ne 1 ]; then
+            echo "::error::Test runner failed unexpectedly with exit code $status"
+            exit "$status"
+          fi
+          echo "::notice::RED is expected until D1-D4 are implemented. Review each failure in the logs."
+      - name: Lint baseline
+        if: always()
+        continue-on-error: true
+        run: npm run lint
+      - name: TypeScript baseline
+        if: always()
+        continue-on-error: true
+        run: npx tsc --noEmit
+      - name: Build baseline (may need non-production environment variables)
+        if: always()
+        continue-on-error: true
+        run: npm run build
