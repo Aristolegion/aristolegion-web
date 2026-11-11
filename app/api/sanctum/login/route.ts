@@ -5,7 +5,7 @@ import {
   createSessionToken,
   verifyAdminPassword,
 } from "@/lib/sanctum/auth";
-import { admitLoginAttempt, clearLoginAttempts } from "@/lib/sanctum/rateLimit";
+import { admitLoginAttempt } from "@/lib/sanctum/rateLimit";
 
 interface LoginPayload {
   password?: unknown;
@@ -42,7 +42,10 @@ export async function POST(request: Request) {
     );
   }
 
-  if (!payload || typeof payload !== "object" || Array.isArray(payload)) {\n    return Response.json({ success: false, error: "Invalid request." }, { status: 400 });\n  }\n  const { password } = payload;
+  if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
+    return Response.json({ success: false, error: "Invalid request." }, { status: 400 });
+  }
+  const { password } = payload;
 
   if (typeof password !== "string" || !verifyAdminPassword(password)) {
     return Response.json(
@@ -62,14 +65,9 @@ export async function POST(request: Request) {
     );
   }
 
-  try {
-    await clearLoginAttempts(admission.key);
-  } catch {
-    return Response.json(
-      { success: false, error: "Login temporarily unavailable." },
-      { status: 503, headers: { "Cache-Control": "no-store" } }
-    );
-  }
+  // Deliberately do not clear shared counters after success. An unconditional
+  // reset can erase concurrent failures from another request. A fixed-window
+  // attempt budget is conservative and cannot be reset by successful logins.
 
   const cookieStore = await cookies();
   cookieStore.set(SANCTUM_SESSION_COOKIE, token, {
