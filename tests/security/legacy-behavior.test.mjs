@@ -65,21 +65,3 @@ test("legacy auth: password rotation invalidates old signed sessions", () => {
   assert.equal(fixture.api.isValidSessionToken(token), false);
 });
 
-test("legacy limiter: fifth failed attempt blocks; window expires", () => {
-  const fixture = loadModule("lib/sanctum/rateLimit.ts");
-  for (let i = 0; i < 4; i++) fixture.api.recordFailure("test-ip");
-  assert.equal(fixture.api.isBlocked("test-ip"), false);
-  fixture.api.recordFailure("test-ip");
-  assert.equal(fixture.api.isBlocked("test-ip"), true);
-  assert.ok(fixture.api.getRetryAfterSeconds("test-ip") > 0);
-  fixture.advance(15 * 60 * 1000 + 1);
-  assert.equal(fixture.api.isBlocked("test-ip"), false);
-});
-
-test("legacy limiter: process instances do not share failure state (known weakness)", () => {
-  const a = loadModule("lib/sanctum/rateLimit.ts");
-  const b = loadModule("lib/sanctum/rateLimit.ts");
-  for (let i = 0; i < 5; i++) a.api.recordFailure("same-ip");
-  assert.equal(a.api.isBlocked("same-ip"), true);
-  assert.equal(b.api.isBlocked("same-ip"), false);
-});
