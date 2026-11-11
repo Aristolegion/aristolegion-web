@@ -33,7 +33,7 @@ jobs:
         run: npm ci --ignore-scripts
       - name: Run legacy behavioral characterization (expected GREEN)
         run: node --test tests/security/legacy-behavior.test.mjs
-      - name: Run future-state contract checks (expected RED; report actual exit code)
+      - name: Run WU-02 Redis limiter unit tests\n        run: node --test tests/security/wu02-limiter.test.mjs\n      - name: Run future-state contract checks (expected RED; report actual exit code)
         shell: bash
         run: |
           set +e
