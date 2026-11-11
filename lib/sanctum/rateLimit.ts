@@ -1,50 +1,76 @@
-/**
- * In-memory brute-force guard for /api/sanctum/login — deliberately not a
- * database or external rate-limiting service, per the "no new dependency
- * unless required" constraint. State lives in this module-level Map, so it
- * resets on cold start and isn't shared across concurrent Vercel instances.
- * That's an acceptable trade-off here: it still meaningfully slows down
- * automated guessing on a warm instance, and it backs the constant-time
- * password comparison in lib/sanctum/auth.ts rather than replacing it.
- */
-const MAX_ATTEMPTS = 5;
+import { createHash } from "node:crypto";
+import { isIP } from "node:net";
+
 const WINDOW_MS = 15 * 60 * 1000;
-const BLOCK_MS = 15 * 60 * 1000;
+const MAX_ATTEMPTS = 5;
+const PREFIX = "pa01:nonprod:login:v1:";
 
-interface AttemptRecord {
-  count: number;
-  windowStart: number;
-  blockedUntil: number | null;
-}
+// Redis EVAL is atomic across workers. Count every admitted login attempt BEFORE
+// password verification, so simultaneous requests cannot bypass the threshold.
+export const ADMIT_SCRIPT = `
+local count = redis.call('INCR', KEYS[1])
+if count == 1 then redis.call('PEXPIRE', KEYS[1], tonumber(ARGV[1])) end
+local ttl = redis.call('PTTL', KEYS[1])
+if ttl < 1 then
+  redis.call('PEXPIRE', KEYS[1], tonumber(ARGV[1]))
+  ttl = tonumber(ARGV[1])
+end
+return {count, ttl}
+`;
 
-const attempts = new Map<string, AttemptRecord>();
-
-export function isBlocked(key: string): boolean {
-  const record = attempts.get(key);
-  if (!record?.blockedUntil) return false;
-  return Date.now() < record.blockedUntil;
-}
-
-export function getRetryAfterSeconds(key: string): number {
-  const record = attempts.get(key);
-  if (!record?.blockedUntil) return 0;
-  return Math.max(0, Math.ceil((record.blockedUntil - Date.now()) / 1000));
-}
-
-export function recordFailure(key: string): void {
-  const now = Date.now();
-  const record = attempts.get(key);
-
-  if (!record || now - record.windowStart > WINDOW_MS) {
-    attempts.set(key, { count: 1, windowStart: now, blockedUntil: null });
-    return;
+function clientKey(request: Request): string {
+  // Vercel overwrites its own forwarded IP header at its ingress. Never use
+  // arbitrary user-provided x-forwarded-for or trust headers outside Vercel.
+  if (process.env.VERCEL !== "1") throw new Error("Untrusted ingress");
+  const address = request.headers.get("x-vercel-forwarded-for");
+  if (!address || address !== address.trim() || isIP(address) === 0) {
+    throw new Error("Missing trusted client address");
   }
-
-  const count = record.count + 1;
-  const blockedUntil = count >= MAX_ATTEMPTS ? now + BLOCK_MS : null;
-  attempts.set(key, { count, windowStart: record.windowStart, blockedUntil });
+  return PREFIX + createHash("sha256").update(address).digest("hex");
 }
 
-export function recordSuccess(key: string): void {
-  attempts.delete(key);
+async function redisCommand(command: unknown[]): Promise<unknown> {
+  const url = process.env.UPSTASH_REDIS_REST_URL;
+  const token = process.env.UPSTASH_REDIS_REST_TOKEN;
+  if (!url || !token) throw new Error("Redis not configured");
+  const parsed = new URL(url);
+  if (parsed.protocol !== "https:" || parsed.username || parsed.password || parsed.search || parsed.hash) {
+    throw new Error("Invalid Redis endpoint");
+  }
+  const response = await fetch(parsed.toString(), {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+    body: JSON.stringify(command),
+    cache: "no-store",
+    signal: AbortSignal.timeout(3000),
+  });
+  if (!response.ok) throw new Error("Redis unavailable");
+  const body: unknown = await response.json();
+  if (!body || typeof body !== "object" || !("result" in body) || "error" in body) {
+    throw new Error("Redis command failed");
+  }
+  return body.result;
+}
+
+export interface Admission {
+  allowed: boolean;
+  retryAfterSeconds: number;
+  key: string;
+}
+
+export async function admitLoginAttempt(request: Request): Promise<Admission> {
+  const key = clientKey(request);
+  const result = await redisCommand(["EVAL", ADMIT_SCRIPT, 1, key, WINDOW_MS]);
+  if (!Array.isArray(result) || result.length !== 2 ||
+      !result.every(value => typeof value === "number" && Number.isSafeInteger(value))) {
+    throw new Error("Invalid Redis admission response");
+  }
+  const [count, ttl] = result as number[];
+  if (count < 1 || ttl < 1 || ttl > WINDOW_MS) throw new Error("Invalid Redis admission state");
+  return { allowed: count <= MAX_ATTEMPTS, retryAfterSeconds: count <= MAX_ATTEMPTS ? 0 : Math.max(1, Math.ceil(ttl / 1000)), key };
+}
+
+export async function clearLoginAttempts(key: string): Promise<void> {
+  const result = await redisCommand(["DEL", key]);
+  if (result !== 0 && result !== 1) throw new Error("Invalid Redis reset response");
 }
