@@ -39,7 +39,7 @@ function fixture({ configured = true, vercel = "1", address = "203.0.113.9", out
     exports, require: (id) => ({ "node:crypto": crypto, "node:net": net })[id],
     process: { env }, fetch: fakeFetch, URL, AbortSignal,
   });
-  const request = (ip = address) => ({ headers: { get: (name) => name === "x-vercel-forwarded-for" ? ip : null } });
+  const request = (ip = address, extra = {}) => ({ headers: { get: (name) => name === "x-vercel-forwarded-for" ? ip : (extra[name] ?? null) } });
   return { api: exports, request, commands, counters };
 }
 
@@ -77,6 +77,22 @@ test("WU-02: untrusted ingress and invalid client headers fail closed", async ()
   const g = fixture();
   for (const ip of [null, "203.0.113.9, 198.51.100.1", "not-an-ip", " 203.0.113.9"]) {
     await assert.rejects(g.api.admitLoginAttempt(g.request(ip)));
+  }
+});
+
+test("WU-02: attacker-controlled forwarding headers do not influence limiter identity", async () => {
+  const f = fixture();
+  const forged = { "x-forwarded-for": "198.51.100.88", "x-real-ip": "198.51.100.89", "cf-connecting-ip": "198.51.100.90" };
+  const a = await f.api.admitLoginAttempt(f.request("203.0.113.9", forged));
+  const b = await f.api.admitLoginAttempt(f.request("203.0.113.9", { "x-forwarded-for": "192.0.2.200" }));
+  assert.equal(a.key, b.key);
+  assert.equal(f.counters.get(a.key), 2);
+});
+
+test("WU-02: spoofed trusted-header values are rejected unless a single valid IP", async () => {
+  const f = fixture();
+  for (const ip of ["198.51.100.1,203.0.113.9", "unknown", "198.51.100.1\\nX-Test: injected", ""]) {
+    await assert.rejects(f.api.admitLoginAttempt(f.request(ip)));
   }
 });
 
