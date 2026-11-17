@@ -6,7 +6,7 @@ const raw = process.env.PA01_PREVIEW_URL;
 assert.ok(raw, "Preview URL required");
 const target = new URL(raw);
 assert.equal(target.protocol, "https:", "HTTPS required");
-assert.match(target.hostname, /^aristolegion-[a-z0-9-]+\\.vercel\\.app$/i, "Use a deployment-specific Aristolegion preview URL");
+assert.match(target.hostname, /^aristolegion-[a-z0-9-]+\.vercel\.app$/i, "Use a deployment-specific Aristolegion preview URL");
 assert.equal(target.pathname, "/", "Provide only the deployment origin");
 assert.equal(target.search, "", "URL query is not allowed");
 assert.equal(target.hash, "", "URL fragment is not allowed");
