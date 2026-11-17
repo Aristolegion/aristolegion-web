@@ -7,6 +7,13 @@ on:
         description: "Exact isolated Vercel Preview URL (https://...vercel.app)"
         required: true
         type: string
+      test_mode:
+        description: "Select the live test to run"
+        required: true
+        type: choice
+        options:
+          - sequential
+          - concurrency
       confirm_isolated_preview:
         description: "Type ISOLATED-NONPROD to confirm the target is an isolated nonproduction deployment"
         required: true
@@ -37,5 +44,9 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: "22"
-      - name: Verify isolated preview login limiter
+      - name: Verify sequential login limiter
+        if: inputs.test_mode == 'sequential'
         run: node tests/security/wu02-live-preview.mjs
+      - name: Verify concurrent login limiter
+        if: inputs.test_mode == 'concurrency'
+        run: node tests/security/wu02-live-concurrency.mjs
