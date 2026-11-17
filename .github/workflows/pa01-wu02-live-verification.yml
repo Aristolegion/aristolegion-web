@@ -1,0 +1,41 @@
+name: PA-01 WU-02 live preview verification
+
+on:
+  workflow_dispatch:
+    inputs:
+      preview_url:
+        description: "Exact isolated Vercel Preview URL (https://...vercel.app)"
+        required: true
+        type: string
+      confirm_isolated_preview:
+        description: "Type ISOLATED-NONPROD to confirm the target is an isolated nonproduction deployment"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pa01-wu02-live-verification
+  cancel-in-progress: false
+
+jobs:
+  live-verification:
+    if: github.ref == 'refs/heads/security/pa01-foundation'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      PA01_PREVIEW_URL: ${{ inputs.preview_url }}
+      PA01_CONFIRMATION: ${{ inputs.confirm_isolated_preview }}
+      PA01_VERCEL_BYPASS_SECRET: ${{ secrets.PA01_VERCEL_BYPASS_SECRET }}
+    steps:
+      - name: Check out security branch
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Verify isolated preview login limiter
+        run: node tests/security/wu02-live-preview.mjs
