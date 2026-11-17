@@ -25,7 +25,9 @@ try {
       signal: AbortSignal.timeout(12000),
     });
     const body = (await response.text()).slice(0, 1000);
-    const result = { attempt: i, status: response.status, sessionCookie: response.headers.has("set-cookie") };
+    const contentType = response.headers.get("content-type") ?? "";
+    const result = { attempt: i, status: response.status, sessionCookie: response.headers.has("set-cookie"), contentType };
+    assert.match(contentType, /application\/json/i, "Expected JSON response from application, not a Vercel deployment status page");
     results.push(result);
     assert.ok(!body.includes("Protected by Vercel Authentication"), "Vercel protection intercepted request");
     assert.ok(!body.includes('"protection"'), "Vercel protection intercepted request");
