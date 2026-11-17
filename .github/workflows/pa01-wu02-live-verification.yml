@@ -15,6 +15,7 @@ on:
           - sequential
           - concurrency
           - expiration
+          - failclosed
       confirm_isolated_preview:
         description: "Type ISOLATED-NONPROD to confirm the target is an isolated nonproduction deployment"
         required: true
@@ -54,3 +55,6 @@ jobs:
       - name: Verify 15-minute counter expiration
         if: inputs.test_mode == 'expiration'
         run: node tests/security/wu02-live-expiration.mjs
+      - name: Verify fail-closed login with missing Redis configuration
+        if: inputs.test_mode == 'failclosed'
+        run: node tests/security/wu02-live-failclosed.mjs
