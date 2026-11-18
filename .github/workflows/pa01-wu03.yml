@@ -54,6 +54,8 @@ jobs:
           cache: npm
       - name: Install locked dependencies
         run: npm ci --ignore-scripts
+      - name: Validate deployment namespace security
+        run: node --test tests/security/wu03-environment.test.mjs
       - name: Run WU-03 session registry tests
         run: node --test tests/security/wu03-session-registry.test.mjs
       - name: Execute WU-03 isolated runtime authorization tests

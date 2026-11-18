@@ -1,4 +1,5 @@
 import { createHash, createHmac, randomBytes, timingSafeEqual } from "node:crypto";
+import { sanctumRedisNamespace } from "./environment";
 
 /**
  * PA-01 WU-03: Redis-backed opaque session registry.
@@ -7,8 +8,7 @@ import { createHash, createHmac, randomBytes, timingSafeEqual } from "node:crypt
  */
 export const SESSION_LIFETIME_SECONDS = 7 * 24 * 60 * 60;
 const TOKEN_PATTERN = /^[A-Za-z0-9_-]{43}$/;
-const DEPLOYMENT_NAMESPACE = process.env.VERCEL_ENV === "production" ? "production" : process.env.VERCEL_ENV === "preview" ? "preview" : "development";
-const SESSION_PREFIX = `pa01:${DEPLOYMENT_NAMESPACE}:admin-session:v1:`;
+
 const REQUEST_TIMEOUT_MS = 3000;
 
 type SessionRecord = {
@@ -24,11 +24,13 @@ function rotationFingerprint(): string {
   if (!password || !secret || secret.length < 32) {
     throw new Error("Admin session rotation is not configured");
   }
+  // Rotation is keyed by an independent secret. To prevent old sessions from
+  // returning after password reuse, rotate this secret on EVERY password change.
   return createHmac("sha256", secret).update(password, "utf8").digest("hex");
 }
 
 function tokenKey(token: string): string {
-  return SESSION_PREFIX + createHash("sha256").update(token, "utf8").digest("hex");
+  return `pa01:${sanctumRedisNamespace()}:admin-session:v1:` + createHash("sha256").update(token, "utf8").digest("hex");
 }
 
 function validToken(token: unknown): token is string {

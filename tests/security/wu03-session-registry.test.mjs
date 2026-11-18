@@ -49,6 +49,11 @@ function fixture({ configured = true, outage = false, malformed = false, passwor
   vm.runInNewContext(compiled, {
     exports, require: id => {
       if (id === "node:crypto") return crypto;
+      if (id === "./environment") return { sanctumRedisNamespace: () => {
+        if (["production", "preview", "development"].includes(env.VERCEL_ENV)) return env.VERCEL_ENV;
+        if (!env.VERCEL_ENV && env.VERCEL !== "1" && env.NODE_ENV !== "production") return "development";
+        throw new Error("Unrecognized deployment environment");
+      } };
       throw new Error("Unexpected module: " + id);
     },
     process: { env }, Date: Clock, Buffer, URL, AbortSignal, fetch,
@@ -139,4 +144,19 @@ test("WU-03: malformed stored records fail closed", async () => {
   const key = [...f.entries.keys()][0];
   f.entries.get(key).raw = JSON.stringify({ v: 1, createdAt: 1, expiresAt: 2, rotation: "bad" });
   assert.equal(await f.api.verifyAdminSession(token), false);
+});
+
+
+test("WU-03: password reuse cannot resurrect sessions after rotation secret changes", async () => {
+  const f = fixture();
+  const originalPassword = f.env.ADMIN_PASSWORD;
+  const old = await f.api.issueAdminSession();
+  f.env.ADMIN_PASSWORD = "changed-password";
+  f.env.ADMIN_SESSION_ROTATION_SECRET = "new-independent-rotation-secret-at-least-32-chars";
+  assert.equal(await f.api.verifyAdminSession(old), false);
+  const current = await f.api.issueAdminSession();
+  f.env.ADMIN_PASSWORD = originalPassword;
+  assert.equal(await f.api.verifyAdminSession(old), false);
+  assert.equal(await f.api.verifyAdminSession(current), false);
+  assert.equal(await f.api.verifyAdminSession(await f.api.issueAdminSession()), true);
 });

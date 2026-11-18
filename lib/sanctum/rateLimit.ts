@@ -1,10 +1,9 @@
 import { createHash } from "node:crypto";
 import { isIP } from "node:net";
+import { sanctumRedisNamespace } from "./environment";
 
 const WINDOW_MS = 15 * 60 * 1000;
 const MAX_ATTEMPTS = 5;
-const DEPLOYMENT_NAMESPACE = process.env.VERCEL_ENV === "production" ? "production" : process.env.VERCEL_ENV === "preview" ? "preview" : "development";
-const PREFIX = `pa01:${DEPLOYMENT_NAMESPACE}:login:v1:`;
 
 // Redis EVAL is atomic across workers. Count every admitted login attempt BEFORE
 // password verification, so simultaneous requests cannot bypass the threshold.
@@ -27,7 +26,7 @@ function clientKey(request: Request): string {
   if (!address || address !== address.trim() || isIP(address) === 0) {
     throw new Error("Missing trusted client address");
   }
-  return PREFIX + createHash("sha256").update(address).digest("hex");
+  return `pa01:${sanctumRedisNamespace()}:login:v1:` + createHash("sha256").update(address).digest("hex");
 }
 
 async function redisCommand(command: unknown[]): Promise<unknown> {

@@ -42,6 +42,10 @@ function harness() {
   vm.runInNewContext(compile("lib/sanctum/sessionRegistry.ts"), {
     exports: registry.exports, require: id => {
       if (id === "node:crypto") return crypto;
+      if (id === "./environment") return { sanctumRedisNamespace: () => {
+        if (["production", "preview", "development"].includes(env.VERCEL_ENV)) return env.VERCEL_ENV;
+        throw Error("Unrecognized deployment environment");
+      } };
       throw Error("unexpected dependency " + id);
     },
     process: { env }, Date: Clock, Buffer, URL, AbortSignal, fetch: fakeFetch,

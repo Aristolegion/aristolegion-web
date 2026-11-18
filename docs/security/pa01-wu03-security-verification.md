@@ -29,3 +29,8 @@ Branch: `security/pa01-wu03-opaque-sessions`. Production merge/promotion: **NOT 
 
 ## Secret and deployment safety
 Never paste or log administrator passwords, Redis tokens, rotation secrets, or session cookies. Do not rotate global `ADMIN_PASSWORD`, deploy to production, or merge this branch as part of test execution.
+
+## Hardening: password reuse and namespace validation
+- Password changes MUST be accompanied by a new, independent `ADMIN_SESSION_ROTATION_SECRET` (at least 32 characters). A password-only change invalidates existing sessions only while the changed password remains in effect; restoring an old password without changing the secret could resurrect unexpired sessions. Secret rotation prevents this; password-only rotation is **not** a complete revocation guarantee. Rotate the secret in each affected environment and verify deployment configuration before release. Do not reuse a prior rotation secret.
+- Redis key prefixes now use a shared strict environment resolver. Unknown `VERCEL_ENV` values, or a missing value in production/Vercel, fail closed. Local nonproduction development remains supported.
+- Secret rotation invalidates active sessions and requires re-login. No production secrets were changed by this code update.
