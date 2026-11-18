@@ -15,7 +15,7 @@ function fixture({ configured = true, vercel = "1", address = "203.0.113.9", out
   const commands = [];
   const env = {
     VERCEL: vercel,
-    ...(deployment ? { VERCEL_ENV: deployment } : {}),
+    VERCEL_ENV: deployment ?? "development",
     ...(configured ? { UPSTASH_REDIS_REST_URL: "https://example.upstash.io", UPSTASH_REDIS_REST_TOKEN: "test-only" } : {}),
   };
   const fakeFetch = async (_url, opts) => {
@@ -37,7 +37,13 @@ function fixture({ configured = true, vercel = "1", address = "203.0.113.9", out
   const exports = {};
   const js = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }).outputText;
   vm.runInNewContext(js, {
-    exports, require: (id) => ({ "node:crypto": crypto, "node:net": net })[id],
+    exports, require: (id) => {
+      if (id === "./environment") return { sanctumRedisNamespace: () => {
+        if (["production", "preview", "development"].includes(env.VERCEL_ENV)) return env.VERCEL_ENV;
+        throw new Error("Unrecognized deployment environment");
+      } };
+      return ({ "node:crypto": crypto, "node:net": net })[id];
+    },
     process: { env }, fetch: fakeFetch, URL, AbortSignal,
   });
   const request = (ip = address, extra = {}) => ({ headers: { get: (name) => name === "x-vercel-forwarded-for" ? ip : (extra[name] ?? null) } });
