@@ -9,15 +9,21 @@ on:
       - 'tests/security/wu03-*.test.mjs'
       - 'app/api/sanctum/**'
       - 'app/sanctum/**'
+      - 'app/essays/**'
+      - 'app/library/**'
+      - 'app/newsletter/**'
       - 'package.json'
       - 'package-lock.json'
   pull_request:
     paths:
       - '.github/workflows/pa01-wu03.yml'
       - 'lib/sanctum/**'
-      - 'tests/security/wu03-session-registry.test.mjs'
+      - 'tests/security/wu03-*.test.mjs'
       - 'app/api/sanctum/**'
       - 'app/sanctum/**'
+      - 'app/essays/**'
+      - 'app/library/**'
+      - 'app/newsletter/**'
       - 'package.json'
       - 'package-lock.json'
   workflow_dispatch:
