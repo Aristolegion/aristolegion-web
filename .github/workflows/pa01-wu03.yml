@@ -56,6 +56,8 @@ jobs:
         run: npm ci --ignore-scripts
       - name: Run WU-03 session registry tests
         run: node --test tests/security/wu03-session-registry.test.mjs
+      - name: Execute WU-03 isolated runtime authorization tests
+        run: node --test tests/security/wu03-runtime-auth.test.mjs
       - name: Verify WU-03 Phase 2 protected-route migration
         run: node --test tests/security/wu03-phase2-migration.test.mjs
       - name: Verify Sanctum origin guard coverage

@@ -10,11 +10,12 @@ import net from "node:net";
 const ROOT = process.cwd();
 const source = fs.readFileSync(path.join(ROOT, "lib/sanctum/rateLimit.ts"), "utf8");
 
-function fixture({ configured = true, vercel = "1", address = "203.0.113.9", outage = false } = {}) {
+function fixture({ configured = true, vercel = "1", address = "203.0.113.9", outage = false, deployment = undefined } = {}) {
   const counters = new Map();
   const commands = [];
   const env = {
     VERCEL: vercel,
+    ...(deployment ? { VERCEL_ENV: deployment } : {}),
     ...(configured ? { UPSTASH_REDIS_REST_URL: "https://example.upstash.io", UPSTASH_REDIS_REST_TOKEN: "test-only" } : {}),
   };
   const fakeFetch = async (_url, opts) => {
@@ -108,4 +109,16 @@ test("WU-02: Lua performs INCR and PEXPIRE in one atomic EVAL", () => {
   assert.match(source, /redis\.call\('PEXPIRE'/);
   assert.match(source, /\["EVAL", ADMIT_SCRIPT/);
   assert.doesNotMatch(source, /new Map</);
+});
+
+
+test("WU-03: limiter isolates production, preview and development Redis keys", async () => {
+  const keys = [];
+  for (const [deployment, namespace] of [["production", "production"], ["preview", "preview"], [undefined, "development"]]) {
+    const f = fixture({ deployment });
+    const result = await f.api.admitLoginAttempt(f.request());
+    assert.match(result.key, new RegExp("^pa01:" + namespace + ":login:v1:[a-f0-9]{64}$"));
+    keys.push(result.key);
+  }
+  assert.equal(new Set(keys).size, 3, "same IP must use distinct environment keys");
 });

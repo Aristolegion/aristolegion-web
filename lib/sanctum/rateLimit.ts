@@ -3,7 +3,8 @@ import { isIP } from "node:net";
 
 const WINDOW_MS = 15 * 60 * 1000;
 const MAX_ATTEMPTS = 5;
-const PREFIX = "pa01:nonprod:login:v1:";
+const DEPLOYMENT_NAMESPACE = process.env.VERCEL_ENV === "production" ? "production" : process.env.VERCEL_ENV === "preview" ? "preview" : "development";
+const PREFIX = `pa01:${DEPLOYMENT_NAMESPACE}:login:v1:`;
 
 // Redis EVAL is atomic across workers. Count every admitted login attempt BEFORE
 // password verification, so simultaneous requests cannot bypass the threshold.
