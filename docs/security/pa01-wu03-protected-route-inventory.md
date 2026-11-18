@@ -4,7 +4,7 @@ Status: **SOURCE INVENTORY COMPLETE; IMPLEMENTATION NOT STARTED**.
 Audited branch: `security/pa01-wu03-opaque-sessions`, commit `41d3e0add4a7988f4b3a7822fdad493b49b30a76`.
 Method: recursive Git tree enumeration and direct file reads of each protected Sanctum API route. This is a static source audit, not a runtime security test.
 
-## Protected Sanctum API routes (12 files, 16 exported methods)
+## Protected Sanctum API routes (14 files, 17 exported methods)
 
 | Route file | Exported methods | Current guard | WU-03 action |
 |---|---|---|---|
@@ -23,7 +23,7 @@ Method: recursive Git tree enumeration and direct file reads of each protected S
 | `app/api/sanctum/publications/[id]/test-send/route.ts` | POST | `isValidSessionToken` | Async Redis verification |
 | `app/api/sanctum/publications/upload-url/route.ts` | POST | `isValidSessionToken` | Async Redis verification |
 
-**Correction to summary counts:** There are **14 protected API route files**, not 12; the earlier initial sample covered 12 additional paths and the previously inspected essays/publications root paths add 2. There are **18 exported protected methods** (12 single-method files + 3 double-method files? Recount from table: 14 route files, 3 double-method files = 17 methods). The authoritative inventory is the table, with **14 files and 17 exported methods**.
+**Inventory totals:** 14 protected API route files, 17 exported protected methods (11 single-method routes and 3 two-method routes). Two additional Sanctum routes handle login and logout, and one dashboard page requires session validation.
 
 ## Protected dashboard
 - `app/sanctum/page.tsx` checks the Sanctum cookie with synchronous `isValidSessionToken` before loading sensitive data. Switch to awaited Redis-backed validation and ensure failures render the login/unauthorized state without loading data.
