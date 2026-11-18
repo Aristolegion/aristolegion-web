@@ -3,7 +3,8 @@ import { cookies } from "next/headers";
 import { notFound } from "next/navigation";
 import { HostedNewsletterIssueLayout } from "@/components/newsletter/HostedNewsletterIssueLayout";
 import { excerptFromMarkdown } from "@/lib/markdown";
-import { SANCTUM_SESSION_COOKIE, isValidSessionToken } from "@/lib/sanctum/auth";
+import { SANCTUM_SESSION_COOKIE } from "@/lib/sanctum/auth";
+import { verifyAdminSession } from "@/lib/sanctum/sessionRegistry";
 import { supabaseCreateSignedUrl, supabaseSelect } from "@/lib/supabase";
 import type { NewsletterIssue } from "@/lib/sanctum/types";
 
@@ -26,7 +27,7 @@ interface NewsletterIssuePageProps {
 async function hasSanctumSession(): Promise<boolean> {
   const cookieStore = await cookies();
   const token = cookieStore.get(SANCTUM_SESSION_COOKIE)?.value;
-  return isValidSessionToken(token);
+  return await verifyAdminSession(token);
 }
 
 // `allowDraft` is only ever true when both ?preview=true is present AND the
