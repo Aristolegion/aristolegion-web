@@ -12,6 +12,7 @@ on:
       - 'app/essays/**'
       - 'app/library/**'
       - 'app/newsletter/**'
+      - 'proxy.ts'
       - 'package.json'
       - 'package-lock.json'
   pull_request:
@@ -24,6 +25,7 @@ on:
       - 'app/essays/**'
       - 'app/library/**'
       - 'app/newsletter/**'
+      - 'proxy.ts'
       - 'package.json'
       - 'package-lock.json'
   workflow_dispatch:
@@ -56,6 +58,8 @@ jobs:
         run: node --test tests/security/wu03-session-registry.test.mjs
       - name: Verify WU-03 Phase 2 protected-route migration
         run: node --test tests/security/wu03-phase2-migration.test.mjs
+      - name: Verify Sanctum origin guard coverage
+        run: node --test tests/security/wu03-origin-gate.test.mjs
       - name: Run WU-02 limiter regression tests
         run: node --test tests/security/wu02-limiter.test.mjs
       - name: Lint
