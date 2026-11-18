@@ -69,7 +69,7 @@ test("WU-03: 256-bit random opaque tokens are unique; Redis stores only token di
   assert.notEqual(a, b);
   assert.equal(f.entries.size, 2);
   for (const key of f.entries.keys()) {
-    assert.match(key, /^pa01:nonprod:admin-session:v1:[a-f0-9]{64}$/);
+    assert.match(key, /^pa01:development:admin-session:v1:[a-f0-9]{64}$/);
     assert.equal(key.includes(a), false);
     assert.equal(key.includes(b), false);
   }
