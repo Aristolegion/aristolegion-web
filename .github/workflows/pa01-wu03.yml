@@ -6,7 +6,7 @@ on:
     paths:
       - '.github/workflows/pa01-wu03.yml'
       - 'lib/sanctum/**'
-      - 'tests/security/wu03-session-registry.test.mjs'
+      - 'tests/security/wu03-*.test.mjs'
       - 'app/api/sanctum/**'
       - 'app/sanctum/**'
       - 'package.json'
@@ -48,6 +48,8 @@ jobs:
         run: npm ci --ignore-scripts
       - name: Run WU-03 session registry tests
         run: node --test tests/security/wu03-session-registry.test.mjs
+      - name: Verify WU-03 Phase 2 protected-route migration
+        run: node --test tests/security/wu03-phase2-migration.test.mjs
       - name: Run WU-02 limiter regression tests
         run: node --test tests/security/wu02-limiter.test.mjs
       - name: Lint
