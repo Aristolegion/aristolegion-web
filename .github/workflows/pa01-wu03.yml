@@ -1,0 +1,58 @@
+name: PA-01 WU-03 Session Registry CI
+on:
+  push:
+    branches:
+      - security/pa01-wu03-opaque-sessions
+    paths:
+      - '.github/workflows/pa01-wu03.yml'
+      - 'lib/sanctum/**'
+      - 'tests/security/wu03-session-registry.test.mjs'
+      - 'app/api/sanctum/**'
+      - 'app/sanctum/**'
+      - 'package.json'
+      - 'package-lock.json'
+  pull_request:
+    paths:
+      - '.github/workflows/pa01-wu03.yml'
+      - 'lib/sanctum/**'
+      - 'tests/security/wu03-session-registry.test.mjs'
+      - 'app/api/sanctum/**'
+      - 'app/sanctum/**'
+      - 'package.json'
+      - 'package-lock.json'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pa01-wu03-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  session-registry:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      CI: 'true'
+      NEXT_TELEMETRY_DISABLED: '1'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Install locked dependencies
+        run: npm ci --ignore-scripts
+      - name: Run WU-03 session registry tests
+        run: node --test tests/security/wu03-session-registry.test.mjs
+      - name: Run WU-02 limiter regression tests
+        run: node --test tests/security/wu02-limiter.test.mjs
+      - name: Lint
+        run: npm run lint
+      - name: TypeScript
+        run: npx tsc --noEmit
+      - name: Build
+        run: npm run build
