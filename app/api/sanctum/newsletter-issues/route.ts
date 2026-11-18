@@ -1,5 +1,6 @@
 import { cookies } from "next/headers";
-import { SANCTUM_SESSION_COOKIE, isValidSessionToken } from "@/lib/sanctum/auth";
+import { SANCTUM_SESSION_COOKIE } from "@/lib/sanctum/auth";
+import { verifyAdminSession } from "@/lib/sanctum/sessionRegistry";
 import {
   PUBLICATIONS_BUCKET,
   buildNewsletterCoverPath,
@@ -20,7 +21,7 @@ export async function POST(request: Request) {
   const cookieStore = await cookies();
   const token = cookieStore.get(SANCTUM_SESSION_COOKIE)?.value;
 
-  if (!isValidSessionToken(token)) {
+  if (!await verifyAdminSession(token)) {
     return Response.json({ success: false, error: "Unauthorized." }, { status: 401 });
   }
 

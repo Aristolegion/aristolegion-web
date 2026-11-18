@@ -2,7 +2,8 @@ import type { Metadata } from "next";
 import { cookies } from "next/headers";
 import { SanctumDashboard } from "@/components/sanctum/SanctumDashboard";
 import { SanctumLoginForm } from "@/components/sanctum/SanctumLoginForm";
-import { SANCTUM_SESSION_COOKIE, isValidSessionToken } from "@/lib/sanctum/auth";
+import { SANCTUM_SESSION_COOKIE } from "@/lib/sanctum/auth";
+import { verifyAdminSession } from "@/lib/sanctum/sessionRegistry";
 import { supabaseCreateSignedUrl, supabaseSelect } from "@/lib/supabase";
 import type {
   Essay,
@@ -29,7 +30,7 @@ export default async function SanctumPage() {
   const cookieStore = await cookies();
   const token = cookieStore.get(SANCTUM_SESSION_COOKIE)?.value;
 
-  if (!isValidSessionToken(token)) {
+  if (!await verifyAdminSession(token)) {
     return <SanctumLoginForm />;
   }
 
