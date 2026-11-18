@@ -3,12 +3,12 @@ import { createHash, createHmac, randomBytes, timingSafeEqual } from "node:crypt
 /**
  * PA-01 WU-03: Redis-backed opaque session registry.
  *
- * This module is deliberately NOT wired into the legacy login/guards yet.
- * WU-03 cutover must update every protected route atomically.
+ * Sanctum login, logout and all protected guards now use this registry.
  */
 export const SESSION_LIFETIME_SECONDS = 7 * 24 * 60 * 60;
 const TOKEN_PATTERN = /^[A-Za-z0-9_-]{43}$/;
-const SESSION_PREFIX = "pa01:nonprod:admin-session:v1:";
+const DEPLOYMENT_NAMESPACE = process.env.VERCEL_ENV === "production" ? "production" : process.env.VERCEL_ENV === "preview" ? "preview" : "development";
+const SESSION_PREFIX = `pa01:${DEPLOYMENT_NAMESPACE}:admin-session:v1:`;
 const REQUEST_TIMEOUT_MS = 3000;
 
 type SessionRecord = {
