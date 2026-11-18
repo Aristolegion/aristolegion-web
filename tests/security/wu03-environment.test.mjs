@@ -7,9 +7,9 @@ const compiled = ts.transpileModule(fs.readFileSync("lib/sanctum/environment.ts"
   compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
 }).outputText;
 function namespace(env) {
-  const module = { exports: {} };
-  vm.runInNewContext(compiled, { exports: module.exports, process: { env } });
-  return module.exports.sanctumRedisNamespace();
+  const sandboxModule = { exports: {} };
+  vm.runInNewContext(compiled, { exports: sandboxModule.exports, process: { env } });
+  return sandboxModule.exports.sanctumRedisNamespace();
 }
 test("WU-03: known Vercel environments have distinct namespaces", () => {
   for (const name of ["production", "preview", "development"]) {
