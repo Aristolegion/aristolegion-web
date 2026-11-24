@@ -1,4 +1,4 @@
-name: PA-01 WU-02 live preview verification
+name: PA-01 WU-03 live preview verification
 
 on:
   workflow_dispatch:
@@ -17,6 +17,7 @@ on:
           - expiration
           - failclosed
           - networkfailure
+          - session
       confirm_isolated_preview:
         description: "Type ISOLATED-NONPROD to confirm the target is an isolated nonproduction deployment"
         required: true
@@ -31,11 +32,13 @@ concurrency:
 
 jobs:
   live-verification:
-    if: github.ref == 'refs/heads/security/pa01-foundation'
+    if: github.ref == 'refs/heads/security/pa01-wu03-opaque-sessions'
+    environment: pa01-isolated-preview
     runs-on: ubuntu-latest
     timeout-minutes: 20
     env:
       PA01_PREVIEW_URL: ${{ inputs.preview_url }}
+      PA01_APPROVED_PREVIEW_URL: ${{ vars.PA01_APPROVED_PREVIEW_URL }}
       PA01_CONFIRMATION: ${{ inputs.confirm_isolated_preview }}
       PA01_VERCEL_BYPASS_SECRET: ${{ secrets.PA01_VERCEL_BYPASS_SECRET }}
     steps:
@@ -62,3 +65,8 @@ jobs:
       - name: Verify fail-closed login with unreachable Redis endpoint
         if: inputs.test_mode == 'networkfailure'
         run: node tests/security/wu02-live-network-failure.mjs
+      - name: Verify authenticated CSRF and revocation
+        if: inputs.test_mode == 'session'
+        env:
+          PA01_NONPROD_ADMIN_PASSWORD: ${{ secrets.PA01_NONPROD_ADMIN_PASSWORD }}
+        run: node tests/security/wu03-live-session-runner.mjs

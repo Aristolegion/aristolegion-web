@@ -5,6 +5,7 @@ on:
       - security/pa01-wu03-opaque-sessions
     paths:
       - '.github/workflows/pa01-wu03.yml'
+      - '.github/workflows/pa01-wu02-live-verification.yml'
       - 'lib/sanctum/**'
       - 'tests/security/**'
       - 'app/api/sanctum/**'
@@ -18,6 +19,7 @@ on:
   pull_request:
     paths:
       - '.github/workflows/pa01-wu03.yml'
+      - '.github/workflows/pa01-wu02-live-verification.yml'
       - 'lib/sanctum/**'
       - 'tests/security/**'
       - 'app/api/sanctum/**'
@@ -55,7 +57,7 @@ jobs:
       - name: Install locked dependencies
         run: npm ci --ignore-scripts
       - name: Validate isolated live target guard
-        run: node --test tests/security/wu03-live-target.test.mjs
+        run: node --test tests/security/wu03-live-target.test.mjs tests/security/wu03-live-session.test.mjs
       - name: Validate deployment namespace security
         run: node --test tests/security/wu03-environment.test.mjs
       - name: Run WU-03 session registry tests
