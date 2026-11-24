@@ -64,8 +64,30 @@ function withSecurityHeaders(response: NextResponse): NextResponse {
 // Future steps (CSP, Rate Limiting, Authentication, AI Gateway, Logging)
 // will each read/write `response` here, in order, before the final return —
 // this function is the single seam future specs extend.
+/** Reject cookie-authenticated cross-origin Sanctum mutations before handlers run. */
+function rejectCrossOriginSanctumMutation(request: NextRequest): NextResponse | null {
+  if (!request.nextUrl.pathname.startsWith("/api/sanctum/")) return null;
+  if (!["POST", "PATCH", "PUT", "DELETE"].includes(request.method)) return null;
+  const origin = request.headers.get("origin");
+  let source: URL;
+  try {
+    if (!origin || origin === "null") throw new Error("Missing origin");
+    source = new URL(origin);
+  } catch {
+    return NextResponse.json({ success: false, error: "Forbidden origin." }, { status: 403, headers: { "Cache-Control": "no-store" } });
+  }
+  if (source.origin !== request.nextUrl.origin || (process.env.NODE_ENV === "production" && source.protocol !== "https:")) {
+    return NextResponse.json({ success: false, error: "Forbidden origin." }, { status: 403, headers: { "Cache-Control": "no-store" } });
+  }
+  return null;
+}
 function runProxy(request: NextRequest): NextResponse {
   const { response } = withRequestId(request);
+  const rejected = rejectCrossOriginSanctumMutation(request);
+  if (rejected) {
+    rejected.headers.set(REQUEST_ID_HEADER, response.headers.get(REQUEST_ID_HEADER) ?? "");
+    return withSecurityHeaders(rejected);
+  }
   return withSecurityHeaders(response);
 }
 

@@ -7,7 +7,8 @@ import {
 } from "@/components/publication/PublicationTemplate";
 import { getPublication, publications } from "@/lib/content/library";
 import { getPublicationDisplayCategory } from "@/lib/content/publicationEnhancements";
-import { SANCTUM_SESSION_COOKIE, isValidSessionToken } from "@/lib/sanctum/auth";
+import { SANCTUM_SESSION_COOKIE } from "@/lib/sanctum/auth";
+import { verifyAdminSession } from "@/lib/sanctum/sessionRegistry";
 import { resolveCoverImage, supabaseCreateSignedUrl, supabaseSelect } from "@/lib/supabase";
 import type { Publication as HostedPublication } from "@/lib/sanctum/types";
 import type { Publication as StaticPublication } from "@/lib/content/types";
@@ -38,7 +39,7 @@ interface PublicationPageProps {
 async function hasSanctumSession(): Promise<boolean> {
   const cookieStore = await cookies();
   const token = cookieStore.get(SANCTUM_SESSION_COOKIE)?.value;
-  return isValidSessionToken(token);
+  return await verifyAdminSession(token);
 }
 
 // `allowDraft` is only ever true when both ?preview=true is present AND the
