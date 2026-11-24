@@ -6,7 +6,7 @@ on:
     paths:
       - '.github/workflows/pa01-wu03.yml'
       - 'lib/sanctum/**'
-      - 'tests/security/wu03-*.test.mjs'
+      - 'tests/security/**'
       - 'app/api/sanctum/**'
       - 'app/sanctum/**'
       - 'app/essays/**'
@@ -19,7 +19,7 @@ on:
     paths:
       - '.github/workflows/pa01-wu03.yml'
       - 'lib/sanctum/**'
-      - 'tests/security/wu03-*.test.mjs'
+      - 'tests/security/**'
       - 'app/api/sanctum/**'
       - 'app/sanctum/**'
       - 'app/essays/**'
@@ -54,6 +54,8 @@ jobs:
           cache: npm
       - name: Install locked dependencies
         run: npm ci --ignore-scripts
+      - name: Validate isolated live target guard
+        run: node --test tests/security/wu03-live-target.test.mjs
       - name: Validate deployment namespace security
         run: node --test tests/security/wu03-environment.test.mjs
       - name: Run WU-03 session registry tests

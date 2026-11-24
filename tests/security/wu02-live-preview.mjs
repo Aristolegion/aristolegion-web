@@ -1,22 +1,14 @@
 import assert from "node:assert/strict";
 
-const confirmation = process.env.PA01_CONFIRMATION;
-assert.equal(confirmation, "ISOLATED-NONPROD", "Explicit isolated-preview confirmation required");
-const raw = process.env.PA01_PREVIEW_URL;
-assert.ok(raw, "Preview URL required");
-const target = new URL(raw);
-assert.equal(target.protocol, "https:", "HTTPS required");
-assert.match(target.hostname, /^aristolegion-[a-z0-9-]+\.vercel\.app$/i, "Use a deployment-specific Aristolegion preview URL");
-assert.equal(target.pathname, "/", "Provide only the deployment origin");
-assert.equal(target.search, "", "URL query is not allowed");
-assert.equal(target.hash, "", "URL fragment is not allowed");
-assert.notEqual(target.hostname, "aristolegion-web.vercel.app", "Production alias forbidden");
+import { isolatedTarget } from "./wu03-live-target.mjs";
+const target = isolatedTarget();
 const secret = process.env.PA01_VERCEL_BYPASS_SECRET;
 assert.ok(secret && secret.length >= 16, "Configure PA01_VERCEL_BYPASS_SECRET as a GitHub Actions secret");
 const endpoint = new URL("/api/sanctum/login", target);
 const invalidPassword = "PA01-INVALID-NONPROD-ONLY";
 const baseHeaders = {
   "content-type": "application/json",
+      "origin": target.origin,
   "x-vercel-protection-bypass": secret,
   "user-agent": "pa01-wu02-controlled-verification",
 };
@@ -63,6 +55,6 @@ try {
   }
   console.log(JSON.stringify({ verdict: "PASS", results }));
 } catch (error) {
-  console.error(JSON.stringify({ verdict: "FAIL", results, reason: String(error?.message ?? error) }));
+  console.error(JSON.stringify({ verdict: "FAIL", results, reason: "Verification assertion or request failed" }));
   process.exitCode = 1;
 }

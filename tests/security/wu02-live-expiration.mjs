@@ -1,13 +1,8 @@
 import assert from "node:assert/strict";
 import { setTimeout as sleep } from "node:timers/promises";
 
-assert.equal(process.env.PA01_CONFIRMATION, "ISOLATED-NONPROD");
-const target = new URL(process.env.PA01_PREVIEW_URL ?? "");
-assert.equal(target.protocol, "https:");
-assert.match(target.hostname, /^aristolegion-[a-z0-9-]+\.vercel\.app$/i);
-assert.equal(target.pathname, "/");
-assert.equal(target.search, "");
-assert.equal(target.hash, "");
+import { isolatedTarget } from "./wu03-live-target.mjs";
+const target = isolatedTarget();
 const secret = process.env.PA01_VERCEL_BYPASS_SECRET;
 assert.ok(secret && secret.length >= 16, "Missing GitHub Actions bypass secret");
 const endpoint = new URL("/api/sanctum/login", target);
@@ -18,6 +13,7 @@ async function probe(name) {
     redirect: "manual",
     headers: {
       "content-type": "application/json",
+      "origin": target.origin,
       "x-vercel-protection-bypass": secret,
       "user-agent": "pa01-wu02-expiration-test",
     },
@@ -49,6 +45,6 @@ try {
   assert.equal(after.status, 401, "After expiration, invalid password should reach authentication again");
   console.log(JSON.stringify({ verdict: "PASS", results }));
 } catch (error) {
-  console.error(JSON.stringify({ verdict: "FAIL", results, reason: String(error?.message ?? error) }));
+  console.error(JSON.stringify({ verdict: "FAIL", results, reason: "Verification assertion or request failed" }));
   process.exitCode = 1;
 }
